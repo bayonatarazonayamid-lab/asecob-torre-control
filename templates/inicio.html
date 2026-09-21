@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GRUPO ASECOB · Torre de Control</title>
+    <link rel="icon" href="/static/img/marca-a.png" type="image/png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --asecob: #184a93;
+            --asecob-deep: #0f2f61;
+            --asecob-mid: #2260b8;
+            --muted: rgba(243, 246, 251, 0.78);
+        }
+        * { box-sizing: border-box; }
+        html, body { margin: 0; min-height: 100%; }
+        body {
+            font-family: "Manrope", sans-serif;
+            color: #fff;
+            background: var(--asecob);
+            overflow-x: hidden;
+        }
+        .hero {
+            position: relative;
+            min-height: 100vh;
+            min-height: 100dvh;
+            display: grid;
+            align-items: end;
+            padding: clamp(1.5rem, 4vw, 3rem);
+            background:
+                radial-gradient(ellipse 70% 55% at 78% 18%, rgba(255,255,255,0.12), transparent 55%),
+                radial-gradient(ellipse 50% 40% at 8% 88%, rgba(15,47,97,0.55), transparent 60%),
+                linear-gradient(165deg, var(--asecob-mid) 0%, var(--asecob) 42%, var(--asecob-deep) 100%);
+        }
+        .hero::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            opacity: 0.07;
+            background-image:
+                linear-gradient(rgba(255,255,255,0.9) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.9) 1px, transparent 1px);
+            background-size: 56px 56px;
+            mask-image: radial-gradient(ellipse at 70% 30%, black 20%, transparent 70%);
+        }
+        /* Logo PNG transparente: sin cuadro azul alrededor */
+        .logo-plane {
+            position: absolute;
+            right: max(2%, calc(50% - 26rem));
+            top: 8%;
+            width: min(48vw, 380px);
+            display: grid;
+            place-items: center;
+            animation: fadeRise 1s ease-out both;
+            pointer-events: none;
+        }
+        .logo-plane img {
+            width: 100%;
+            height: auto;
+            display: block;
+            background: transparent;
+            /* sin sombra de “tarjeta” */
+            filter: none;
+        }
+        .copy {
+            position: relative;
+            z-index: 1;
+            max-width: 34rem;
+            padding-bottom: clamp(1rem, 3vh, 2.5rem);
+        }
+        .brand {
+            margin: 0;
+            font-family: "Outfit", sans-serif;
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            font-size: clamp(2.6rem, 9vw, 4.6rem);
+            line-height: 0.95;
+            animation: fadeRise 0.85s ease-out 0.08s both;
+        }
+        .brand em {
+            font-style: normal;
+            display: block;
+            font-size: 0.38em;
+            letter-spacing: 0.22em;
+            font-weight: 600;
+            opacity: 0.75;
+            margin-bottom: 0.55rem;
+        }
+        .headline {
+            margin: 1.35rem 0 0;
+            font-family: "Outfit", sans-serif;
+            font-weight: 700;
+            font-size: clamp(1.25rem, 3.2vw, 1.75rem);
+            letter-spacing: -0.02em;
+            line-height: 1.25;
+            max-width: 16ch;
+            animation: fadeRise 0.85s ease-out 0.2s both;
+        }
+        .lead {
+            margin: 0.9rem 0 0;
+            font-size: 1.05rem;
+            line-height: 1.55;
+            color: var(--muted);
+            max-width: 34rem;
+            animation: fadeRise 0.85s ease-out 0.32s both;
+        }
+        .cta {
+            margin-top: 1.85rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.65rem;
+            background: #fff;
+            color: var(--asecob-deep);
+            text-decoration: none;
+            font-weight: 800;
+            font-size: 0.95rem;
+            padding: 0.95rem 1.45rem;
+            border-radius: 0.55rem;
+            transition: transform 0.25s ease, box-shadow 0.25s ease;
+            box-shadow: 0 12px 28px rgba(8, 28, 64, 0.25);
+            animation: fadeRise 0.85s ease-out 0.42s both;
+        }
+        .cta:hover { transform: translateY(-3px); box-shadow: 0 18px 36px rgba(8, 28, 64, 0.32); }
+        .cta svg { width: 1.05rem; height: 1.05rem; }
+        .status {
+            margin-top: 2rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--muted);
+            animation: fadeRise 0.85s ease-out 0.52s both;
+        }
+        .dot {
+            width: 0.5rem; height: 0.5rem; border-radius: 50%;
+            background: #5ddea3;
+            animation: pulse 2.2s ease-out infinite;
+        }
+        @media (max-width: 820px) {
+            .logo-plane {
+                position: relative;
+                right: auto; top: auto;
+                width: min(70vw, 260px);
+                margin: 0 auto 1.25rem;
+            }
+            .hero {
+                align-items: stretch;
+                grid-template-rows: auto 1fr;
+                padding-top: 2rem;
+            }
+            .copy { align-self: end; }
+            .brand { text-align: center; }
+            .headline, .lead, .status { text-align: center; margin-left: auto; margin-right: auto; }
+            .cta { display: flex; justify-content: center; width: fit-content; margin-left: auto; margin-right: auto; }
+        }
+        @keyframes fadeRise {
+            from { opacity: 0; transform: translateY(22px); }
+            to { opacity: 1; transform: none; }
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(93, 222, 163, 0.5); }
+            70% { box-shadow: 0 0 0 10px rgba(93, 222, 163, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(93, 222, 163, 0); }
+        }
+    </style>
+</head>
+<body>
+    <main class="hero">
+        <div class="logo-plane" aria-hidden="true">
+            <img src="/static/img/logo-grupo-asecob.png" alt="">
+        </div>
+        <div class="copy">
+            <h1 class="brand">
+                <em>GRUPO ASECOB SAS</em>
+                Torre de Control
+            </h1>
+            <p class="headline">El tablero del equipo jurídico</p>
+            <p class="lead">
+                Buzón, actuaciones y demandas en un solo lugar. Solo necesita el navegador — sin instalar nada.
+            </p>
+            <a class="cta" href="/entrar">
+                Entrar al tablero
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+            </a>
+            <p class="status"><span class="dot" aria-hidden="true"></span> Sistema en línea · {{ version }}</p>
+        </div>
+    </main>
+</body>
+</html>
