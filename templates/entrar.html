@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Entrar · GRUPO ASECOB</title>
+    <link rel="icon" href="/static/img/marca-a.png" type="image/png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Outfit:wght@700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --asecob: #184a93;
+            --asecob-deep: #0f2f61;
+            --paper: #f3f6fb;
+            --ink: #0b1c33;
+            --muted: #5a6f88;
+            --danger: #9b2c2c;
+            --line: rgba(11, 28, 51, 0.12);
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            min-height: 100vh;
+            min-height: 100dvh;
+            font-family: "Manrope", sans-serif;
+            color: var(--ink);
+            display: grid;
+            grid-template-columns: 1fr;
+            background: var(--paper);
+        }
+        @media (min-width: 880px) {
+            body { grid-template-columns: minmax(280px, 1.05fr) minmax(320px, 0.95fr); }
+        }
+        .brand-pane {
+            background:
+                radial-gradient(ellipse 80% 60% at 30% 20%, rgba(255,255,255,0.14), transparent 55%),
+                linear-gradient(165deg, #2260b8, var(--asecob) 45%, var(--asecob-deep));
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 2.5rem 1.5rem;
+            text-align: center;
+            animation: fadeIn 0.7s ease-out both;
+        }
+        .brand-pane img {
+            width: min(78%, 320px);
+            height: auto;
+            background: transparent;
+            /* sin caja / sombra de tarjeta */
+            box-shadow: none;
+            border-radius: 0;
+        }
+        .brand-pane p {
+            margin: 1.5rem 0 0;
+            max-width: 22rem;
+            font-size: 0.95rem;
+            line-height: 1.5;
+            color: rgba(255,255,255,0.82);
+        }
+        .form-pane {
+            display: grid;
+            place-items: center;
+            padding: 2rem 1.35rem;
+            animation: rise 0.55s ease-out 0.1s both;
+        }
+        form {
+            width: min(100%, 380px);
+        }
+        h1 {
+            margin: 0;
+            font-family: "Outfit", sans-serif;
+            font-weight: 800;
+            font-size: 1.85rem;
+            letter-spacing: -0.03em;
+            color: var(--asecob-deep);
+        }
+        .sub { margin: 0.4rem 0 0; color: var(--muted); font-size: 0.95rem; line-height: 1.45; }
+        label {
+            display: block;
+            margin: 1.5rem 0 0.45rem;
+            font-size: 0.75rem;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--muted);
+        }
+        input {
+            width: 100%;
+            border: 1px solid var(--line);
+            border-radius: 0.55rem;
+            padding: 0.9rem 1rem;
+            font: inherit;
+            background: #fff;
+            color: var(--ink);
+        }
+        input:focus {
+            outline: 2px solid rgba(24, 74, 147, 0.35);
+            border-color: var(--asecob);
+        }
+        button {
+            margin-top: 1.35rem;
+            width: 100%;
+            border: 0;
+            border-radius: 0.55rem;
+            padding: 0.95rem;
+            font: inherit;
+            font-weight: 800;
+            background: var(--asecob);
+            color: #fff;
+            cursor: pointer;
+            transition: background 0.2s ease, transform 0.2s ease;
+        }
+        button:hover { background: var(--asecob-deep); transform: translateY(-1px); }
+        .error {
+            margin-top: 1rem;
+            padding: 0.75rem 0.9rem;
+            border-radius: 0.55rem;
+            background: #fde8e8;
+            color: var(--danger);
+            font-size: 0.9rem;
+            font-weight: 700;
+        }
+        .hint { margin-top: 1.25rem; font-size: 0.84rem; color: var(--muted); line-height: 1.5; }
+        a.back {
+            display: inline-block;
+            margin-top: 1.4rem;
+            color: var(--muted);
+            font-size: 0.88rem;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        a.back:hover { color: var(--asecob); }
+        @media (max-width: 879px) {
+            .brand-pane { padding: 2rem 1.25rem 1.5rem; min-height: 42vh; }
+            .brand-pane img { width: min(70%, 240px); }
+            .brand-pane p { display: none; }
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        @keyframes rise {
+            from { opacity: 0; transform: translateY(14px); }
+            to { opacity: 1; transform: none; }
+        }
+    </style>
+</head>
+<body>
+    <aside class="brand-pane" aria-hidden="true">
+        <img src="/static/img/logo-grupo-asecob.png" alt="">
+        <p>Asesorías y cobranzas ejecutivas · Torre de Control del equipo jurídico</p>
+    </aside>
+    <div class="form-pane">
+        <form method="post" action="/entrar" autocomplete="current-password">
+            <h1>Entrar</h1>
+            <p class="sub">Acceso del equipo a la Torre de Control de GRUPO ASECOB.</p>
+            {% if error %}
+            <p class="error">{{ error }}</p>
+            {% endif %}
+            <label for="clave">Clave del equipo</label>
+            <input id="clave" name="clave" type="password" required autofocus placeholder="Clave compartida del estudio">
+            <button type="submit">Entrar al tablero</button>
+            <p class="hint">La misma clave para los cinco abogados. No necesita instalar programas ni abrir archivos técnicos.</p>
+            <a class="back" href="/">← Volver al inicio</a>
+        </form>
+    </div>
+</body>
+</html>
