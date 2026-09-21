@@ -1,0 +1,25 @@
+# Torre de Control Asecob — despliegue en Render (internet)
+# Los 5 abogados usan el dashboard en la URL pública.
+# Los robots viven en las PCs de Pereira y llaman a esta API.
+
+services:
+  - type: web
+    name: asecob-torre-control
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.9"
+      - key: DATABASE_URL
+        sync: false
+      - key: ASECOB_API_KEY
+        generateValue: true
+      - key: DASHBOARD_PASSWORD
+        sync: false
+      - key: PUBLIC_BASE_URL
+        sync: false
+      - key: MODO_PRUEBAS
+        value: "False"
