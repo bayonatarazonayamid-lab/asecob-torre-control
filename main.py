@@ -142,12 +142,18 @@ def portada(request: Request):
 
 @app.get("/entrar", response_class=HTMLResponse)
 def entrar_get(request: Request):
-    if DASHBOARD_PASSWORD and acceso_dashboard_ok(request):
+    # Sin clave en Render: no hace falta login
+    if not DASHBOARD_PASSWORD:
+        return RedirectResponse("/dashboard", status_code=303)
+    if acceso_dashboard_ok(request):
         return RedirectResponse("/dashboard", status_code=303)
     return templates.TemplateResponse(
         request=request,
         name="entrar.html",
-        context={"error": None},
+        context={
+            "error": None,
+            "clave_configurada": True,
+        },
     )
 
 
@@ -159,7 +165,10 @@ def entrar_post(request: Request, clave: str = Form(...)):
         return templates.TemplateResponse(
             request=request,
             name="entrar.html",
-            context={"error": "Clave incorrecta. Pídala a coordinación."},
+            context={
+                "error": "Clave incorrecta. Es la variable DASHBOARD_PASSWORD de Render (Environment).",
+                "clave_configurada": True,
+            },
             status_code=401,
         )
     respuesta = RedirectResponse("/dashboard", status_code=303)
