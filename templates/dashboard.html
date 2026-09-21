@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Torre de Control - LegalTech Asecob</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 font-sans leading-normal tracking-normal text-slate-800">
+
+    <nav class="bg-slate-900 p-4 shadow-md text-white flex justify-between items-center px-8">
+        <span class="font-bold text-lg tracking-wide">TORRE DE CONTROL | ASECOB S.A.S.</span>
+        <span class="text-xs bg-emerald-600 font-semibold px-2.5 py-1 rounded">SERVIDOR EN LÍNEA</span>
+    </nav>
+
+    <main class="container mx-auto mt-6 px-4 pb-12">
+        
+        <!-- Pestañas de Navegación -->
+        <div class="flex border-b border-slate-300 mb-6 space-x-4">
+            <button onclick="cambiarTab('tab-buzon')" id="btn-tab-buzon" class="py-2 px-4 border-b-2 border-blue-600 font-bold text-blue-600 focus:outline-none">
+                Buzón Notificaciones ({{ notificaciones|length }})
+            </button>
+            <button onclick="cambiarTab('tab-estados')" id="btn-tab-estados" class="py-2 px-4 border-b-2 border-transparent font-medium text-slate-500 hover:text-slate-700 focus:outline-none">
+                Estados RedJudicial ({{ estados|length }})
+            </button>
+            <button onclick="cambiarTab('tab-demandas')" id="btn-tab-demandas" class="py-2 px-4 border-b-2 border-transparent font-medium text-slate-500 hover:text-slate-700 focus:outline-none">
+                Demandas por Radicar ({{ demandas|length }})
+            </button>
+        </div>
+
+        <!-- 1. TAB BUZÓN -->
+        <section id="tab-buzon" class="space-y-4">
+            <div class="flex justify-between items-center">
+                <h2 class="text-xl font-bold text-slate-800">Providencias Entrantes (CENDOJ / Correo)</h2>
+                <button onclick="location.reload()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-semibold py-2 px-3 rounded">Refrescar</button>
+            </div>
+            <div class="bg-white shadow rounded-lg overflow-x-auto border border-slate-200">
+                <table class="min-w-full text-left text-sm">
+                    <thead class="bg-slate-50 border-b text-xs uppercase font-semibold text-slate-600">
+                        <tr>
+                            <th class="p-3">ID</th>
+                            <th class="p-3">Fecha</th>
+                            <th class="p-3">Clasificación IA</th>
+                            <th class="p-3">Detalle</th>
+                            <th class="p-3">Asunto</th>
+                            <th class="p-3">Asignado A</th>
+                            <th class="p-3 text-center">Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for n in notificaciones %}
+                        <tr class="border-b hover:bg-slate-50">
+                            <td class="p-3 font-mono font-bold">{{ n.id }}</td>
+                            <td class="p-3 text-xs whitespace-nowrap">{{ n.fecha_recepcion.strftime('%Y-%m-%d %H:%M') }}</td>
+                            <td class="p-3 font-semibold text-xs">
+                                {% if n.clasificacion_ia == 'OFICIO_MEDIDA_CAUTELAR' %}
+                                    <span class="bg-amber-100 text-amber-800 px-2 py-0.5 rounded border border-amber-300">MEDIDA CAUTELAR</span>
+                                {% elif n.clasificacion_ia == 'FIJACION_AUDIENCIA' %}
+                                    <span class="bg-blue-100 text-blue-800 px-2 py-0.5 rounded border border-blue-300">AUDIENCIA</span>
+                                {% elif n.clasificacion_ia in ['TUTELA', 'DESACATO'] %}
+                                    <span class="bg-red-100 text-red-800 px-2 py-0.5 rounded border border-red-300">{{ n.clasificacion_ia }}</span>
+                                {% else %}
+                                    <span class="bg-slate-100 text-slate-700 px-2 py-0.5 rounded">OTRO</span>
+                                {% endif %}
+                            </td>
+                            <td class="p-3 text-xs">{{ n.sub_embargo or n.fecha_audiencia or 'N/A' }}</td>
+                            <td class="p-3 max-w-xs truncate" title="{{ n.asunto_original }}">{{ n.asunto_original }}</td>
+                            <td class="p-3 text-xs text-slate-600">{{ n.asignado_a or 'Sin asignar' }}</td>
+                            <td class="p-3 text-center">
+                                <button onclick="marcarCompletado({{ n.id }})" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold py-1 px-2.5 rounded">
+                                    Tramitado
+                                </button>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="7" class="p-6 text-center text-slate-400">Sin notificaciones pendientes en buzón.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- 2. TAB ESTADOS -->
+        <section id="tab-estados" class="space-y-4 hidden">
+            <div class="flex justify-between items-center">
+                <h2 class="text-xl font-bold text-slate-800">Autos Fijados en Lista (RedJudicial)</h2>
+                <button onclick="location.reload()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-semibold py-2 px-3 rounded">Refrescar</button>
+            </div>
+            <div class="bg-white shadow rounded-lg overflow-x-auto border border-slate-200">
+                <table class="min-w-full text-left text-sm">
+                    <thead class="bg-slate-50 border-b text-xs uppercase font-semibold text-slate-600">
+                        <tr>
+                            <th class="p-3">Radicado</th>
+                            <th class="p-3">Fecha Estado</th>
+                            <th class="p-3">Partes</th>
+                            <th class="p-3">Etapa Redelex</th>
+                            <th class="p-3">Actuación Homologada</th>
+                            <th class="p-3">Resumen IA</th>
+                            <th class="p-3">Estado Inyección</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for e in estados %}
+                        <tr class="border-b hover:bg-slate-50 text-xs">
+                            <td class="p-3 font-mono font-bold whitespace-nowrap">{{ e.radicado }}</td>
+                            <td class="p-3 whitespace-nowrap">{{ e.fecha_notificacion }}</td>
+                            <td class="p-3 max-w-xs truncate">{{ e.demandante }} vs {{ e.demandado }}</td>
+                            <td class="p-3 font-semibold text-slate-700">{{ e.etapa_ia }}</td>
+                            <td class="p-3 font-semibold text-slate-800">{{ e.actuacion_ia }}</td>
+                            <td class="p-3 max-w-md whitespace-normal break-words text-slate-600 leading-relaxed">{{ e.resumen_ia }}</td>
+                            <td class="p-3">
+                                <span class="bg-amber-100 text-amber-800 px-2 py-0.5 rounded font-semibold">{{ e.estado_inyeccion }}</span>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="7" class="p-6 text-center text-slate-400">Sin autos de estados pendientes.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- 3. TAB DEMANDAS -->
+        <section id="tab-demandas" class="space-y-4 hidden">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-4 rounded-lg shadow border border-slate-200">
+                <div>
+                    <h2 class="text-xl font-bold text-slate-800">Radicación de Procesos Nuevos</h2>
+                    <p class="text-xs text-slate-500">Cargue masivo de demandas o descarga de la plantilla oficial.</p>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <a href="/api/demandas/descargar-plantilla" class="bg-slate-700 hover:bg-slate-800 text-white text-xs font-semibold py-2 px-3 rounded flex items-center gap-1">
+                        Descargar Plantilla Excel
+                    </a>
+                    <form id="form-upload" class="flex items-center space-x-2" enctype="multipart/form-data">
+                        <input type="file" id="archivo-excel" name="archivo" accept=".xlsx, .xls" class="text-xs text-slate-600 file:mr-2 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" required>
+                        <button type="button" onclick="subirExcel()" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-1.5 px-3 rounded shadow">
+                            Cargar
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="bg-white shadow rounded-lg overflow-x-auto border border-slate-200">
+                <table class="min-w-full text-left text-sm">
+                    <thead class="bg-slate-50 border-b text-xs uppercase font-semibold text-slate-600">
+                        <tr>
+                            <th class="p-3">ID</th>
+                            <th class="p-3">Cartera</th>
+                            <th class="p-3">Demandado</th>
+                            <th class="p-3">Identificación</th>
+                            <th class="p-3">Pretensión</th>
+                            <th class="p-3">Medida Cautelar</th>
+                            <th class="p-3">Estado Robot</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for d in demandas %}
+                        <tr class="border-b hover:bg-slate-50 text-xs">
+                            <td class="p-3 font-mono font-bold">{{ d.id }}</td>
+                            <td class="p-3 font-semibold text-slate-700">{{ d.cartera_dropdown }}</td>
+                            <td class="p-3">{{ d.nombres_demandado }} {{ d.apellidos_demandado }}</td>
+                            <td class="p-3 font-mono">{{ d.tipo_id_demandado }} {{ d.identificacion_demandado }}</td>
+                            <td class="p-3 font-semibold text-slate-800">${{ "{:,.0f}".format(d.monto_pretension) }}</td>
+                            <td class="p-3">{{ d.tipo_bien_medida or 'N/A' }}</td>
+                            <td class="p-3">
+                                <span class="bg-amber-100 text-amber-800 px-2 py-0.5 rounded font-semibold">{{ d.estado_robot }}</span>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="7" class="p-6 text-center text-slate-400">Sin demandas pendientes de radicación.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        function cambiarTab(tabId) {
+            document.getElementById('tab-buzon').classList.add('hidden');
+            document.getElementById('tab-estados').classList.add('hidden');
+            document.getElementById('tab-demandas').classList.add('hidden');
+            
+            document.getElementById('btn-tab-buzon').className = 'py-2 px-4 border-b-2 border-transparent font-medium text-slate-500 hover:text-slate-700 focus:outline-none';
+            document.getElementById('btn-tab-estados').className = 'py-2 px-4 border-b-2 border-transparent font-medium text-slate-500 hover:text-slate-700 focus:outline-none';
+            document.getElementById('btn-tab-demandas').className = 'py-2 px-4 border-b-2 border-transparent font-medium text-slate-500 hover:text-slate-700 focus:outline-none';
+            
+            document.getElementById(tabId).classList.remove('hidden');
+            document.getElementById('btn-' + tabId).className = 'py-2 px-4 border-b-2 border-blue-600 font-bold text-blue-600 focus:outline-none';
+        }
+
+        function marcarCompletado(id) {
+            fetch(`/api/notificaciones/${id}/completar`, { method: 'PATCH' })
+            .then(res => { if(res.ok) location.reload(); })
+            .catch(() => alert('Error al actualizar estado.'));
+        }
+
+        function subirExcel() {
+            const inputFile = document.getElementById('archivo-excel');
+            if (!inputFile.files.length) { alert('Seleccione un archivo Excel.'); return; }
+            const formData = new FormData();
+            formData.append('archivo', inputFile.files[0]);
+            
+            fetch('/api/demandas/cargar-excel', { method: 'POST', body: formData })
+            .then(res => res.json())
+            .then(data => {
+                alert(data.mensaje || data.detail);
+                location.reload();
+            })
+            .catch(() => alert('Fallo al subir archivo.'));
+        }
+    </script>
+</body>
+</html>
