@@ -1,9 +1,12 @@
-fastapi
-uvicorn
-sqlalchemy
-psycopg2-binary
-pandas
-openpyxl
-python-multipart
-jinja2
-python-dotenv
+# Solo Torre de Control en Render (sin robots locales)
+fastapi>=0.110.0
+uvicorn[standard]>=0.27.0
+sqlalchemy>=2.0.0
+psycopg2-binary>=2.9.9
+pandas>=2.1.0
+openpyxl>=3.1.0
+xlsxwriter>=3.1.0
+python-multipart>=0.0.9
+jinja2>=3.1.0
+python-dotenv>=1.0.0
+requests>=2.31.0
