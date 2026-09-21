@@ -1,0 +1,426 @@
+"""
+Torre de Control - LegalTech Asecob S.A.S.
+Núcleo FastAPI: buzón CENDOJ, estados RedJudicial, cola de radicación Redelex.
+"""
+from __future__ import annotations
+
+import io
+from typing import List, Optional
+
+import pandas as pd
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Path, Request, Response, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+from sqlalchemy.orm import Session
+
+import models
+import schemas
+from auth import (
+    SESSION_COOKIE,
+    acceso_dashboard_ok,
+    token_sesion,
+    verificar_acceso_dashboard,
+    verificar_api_key,
+)
+from config import getenv
+from crear_plantilla import generar_plantilla_bytes
+from database import SessionLocal, engine
+from sqlalchemy import inspect, text
+
+models.Base.metadata.create_all(bind=engine)
+
+
+def _asegurar_columnas():
+    """Añade columnas nuevas en SQLite/Postgres sin romper datos existentes."""
+    insp = inspect(engine)
+    if "demandas_nuevas" not in insp.get_table_names():
+        return
+    columnas = {c["name"] for c in insp.get_columns("demandas_nuevas")}
+    if "motivo_error" not in columnas:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE demandas_nuevas ADD COLUMN motivo_error TEXT"))
+
+
+_asegurar_columnas()
+
+app = FastAPI(
+    title="Torre de Control - GRUPO ASECOB SAS",
+    description="Backend centralizado para correo CENDOJ, estados de RedJudicial y radicación en Redelex.",
+    version="2.3.0",
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+templates = Jinja2Templates(directory="templates")
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# Dependencia reutilizable: protege la API cuando ASECOB_API_KEY está en el entorno
+ApiAuth = Depends(verificar_api_key)
+DashAuth = Depends(verificar_acceso_dashboard)
+DASHBOARD_PASSWORD = getenv("DASHBOARD_PASSWORD")
+APP_VERSION = "2.3.0"
+
+COLUMNAS_EXCEL_REQUERIDAS = [
+    "Tipo_Id_Demandado",
+    "Identificacion_Demandado",
+    "Nombres_Demandado",
+    "Apellidos_Demandado",
+    "Cartera_Dropdown",
+]
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
+def _celda_str(fila, col: str, default: str = "") -> str:
+    valor = fila.get(col, default)
+    if pd.isna(valor):
+        return default
+    texto = str(valor).strip()
+    if texto.endswith(".0") and texto.replace(".", "", 1).isdigit():
+        return texto.split(".")[0]
+    return texto
+
+
+def _celda_opcional(fila, col: str) -> Optional[str]:
+    valor = fila.get(col)
+    if pd.isna(valor):
+        return None
+    texto = _celda_str(fila, col)
+    return texto or None
+
+
+def _celda_fecha(fila, col: str):
+    valor = fila.get(col)
+    if pd.isna(valor):
+        return None
+    return pd.to_datetime(valor, errors="coerce")
+
+
+def _celda_float(fila, col: str, default: float = 0.0) -> float:
+    valor = fila.get(col, default)
+    if pd.isna(valor):
+        return default
+    try:
+        return float(valor)
+    except (TypeError, ValueError):
+        return default
+
+
+@app.get("/health")
+@app.get("/api/salud")
+def salud_servidor():
+    return {
+        "estado": "En línea",
+        "sistema": "Torre de Control · GRUPO ASECOB SAS",
+        "version": APP_VERSION,
+        "dashboard": "/dashboard",
+        "equipo": "Tablero compartido · robots locales en oficina",
+    }
+
+
+@app.get("/", response_class=HTMLResponse)
+def portada(request: Request):
+    return templates.TemplateResponse(
+        request=request,
+        name="inicio.html",
+        context={"version": APP_VERSION},
+    )
+
+
+@app.get("/entrar", response_class=HTMLResponse)
+def entrar_get(request: Request):
+    if DASHBOARD_PASSWORD and acceso_dashboard_ok(request):
+        return RedirectResponse("/dashboard", status_code=303)
+    return templates.TemplateResponse(
+        request=request,
+        name="entrar.html",
+        context={"error": None},
+    )
+
+
+@app.post("/entrar", response_class=HTMLResponse)
+def entrar_post(request: Request, clave: str = Form(...)):
+    if not DASHBOARD_PASSWORD:
+        return RedirectResponse("/dashboard", status_code=303)
+    if clave != DASHBOARD_PASSWORD:
+        return templates.TemplateResponse(
+            request=request,
+            name="entrar.html",
+            context={"error": "Clave incorrecta. Pídala a coordinación."},
+            status_code=401,
+        )
+    respuesta = RedirectResponse("/dashboard", status_code=303)
+    respuesta.set_cookie(
+        key=SESSION_COOKIE,
+        value=token_sesion(clave),
+        httponly=True,
+        samesite="lax",
+        max_age=60 * 60 * 12,
+    )
+    return respuesta
+
+
+@app.get("/salir")
+def salir():
+    respuesta = RedirectResponse("/", status_code=303)
+    respuesta.delete_cookie(SESSION_COOKIE)
+    return respuesta
+
+
+@app.get("/api/estadisticas", dependencies=[ApiAuth])
+def obtener_estadisticas_basicas(db: Session = Depends(get_db)):
+    return {
+        "notificaciones_correo": db.query(models.Notificacion).count(),
+        "estados_redjudicial": db.query(models.ActuacionEstado).count(),
+        "demandas_para_radicar": db.query(models.DemandaNueva).count(),
+    }
+
+
+@app.post("/api/notificaciones/", response_model=dict, dependencies=[ApiAuth])
+def recibir_notificacion_robot(notificacion: schemas.NotificacionCreate, db: Session = Depends(get_db)):
+    nueva_notif = models.Notificacion(
+        asunto_original=notificacion.asunto_original,
+        remitente=notificacion.remitente,
+        clasificacion_ia=notificacion.clasificacion_ia,
+        sub_embargo=notificacion.sub_embargo,
+        fecha_audiencia=notificacion.fecha_audiencia,
+        link_audiencia=notificacion.link_audiencia,
+        asignado_a=notificacion.asignado_a,
+        estado_gestion="PENDIENTE",
+    )
+
+    if notificacion.radicado:
+        rad_limpio = notificacion.radicado.replace("'", "").strip()
+        proceso_existente = db.query(models.Proceso).filter(models.Proceso.radicado == rad_limpio).first()
+        if proceso_existente:
+            nueva_notif.proceso_id = proceso_existente.id
+
+    db.add(nueva_notif)
+    db.commit()
+    db.refresh(nueva_notif)
+    return {"mensaje": "Notificación registrada con éxito", "id": nueva_notif.id}
+
+
+@app.get("/api/notificaciones/pendientes", response_model=List[schemas.NotificacionResponse], dependencies=[ApiAuth])
+def listar_notificaciones_pendientes(db: Session = Depends(get_db)):
+    return (
+        db.query(models.Notificacion)
+        .filter(models.Notificacion.estado_gestion == "PENDIENTE")
+        .order_by(models.Notificacion.id.desc())
+        .all()
+    )
+
+
+@app.patch("/api/notificaciones/{notificacion_id}/completar", dependencies=[ApiAuth])
+def marcar_notificacion_gestionada(
+    notificacion_id: int = Path(..., description="ID de la notificación"),
+    db: Session = Depends(get_db),
+):
+    notif = db.query(models.Notificacion).filter(models.Notificacion.id == notificacion_id).first()
+    if not notif:
+        raise HTTPException(status_code=404, detail="Notificación no encontrada")
+    notif.estado_gestion = "GESTIONADO"
+    db.commit()
+    return {"mensaje": f"Notificación {notificacion_id} marcada como GESTIONADA"}
+
+
+@app.post("/api/estados/sincronizar", response_model=dict, dependencies=[ApiAuth])
+def registrar_estado_redjudicial(estado: schemas.ActuacionEstadoCreate, db: Session = Depends(get_db)):
+    nuevo_estado = models.ActuacionEstado(
+        fecha_notificacion=estado.fecha_notificacion,
+        radicado=estado.radicado.strip(),
+        demandante=estado.demandante.strip(),
+        demandado=estado.demandado.strip(),
+        descripcion_actuacion=estado.descripcion_actuacion,
+        etapa_ia=estado.etapa_ia,
+        actuacion_ia=estado.actuacion_ia,
+        resumen_ia=estado.resumen_ia,
+        ruta_pdf_local=estado.ruta_pdf_local,
+        pdf_faltante=estado.pdf_faltante,
+        estado_inyeccion=estado.estado_inyeccion,
+        motivo_falla=estado.motivo_falla,
+    )
+
+    proceso_existente = (
+        db.query(models.Proceso).filter(models.Proceso.radicado == estado.radicado.strip()).first()
+    )
+    if proceso_existente:
+        nuevo_estado.proceso_id = proceso_existente.id
+
+    db.add(nuevo_estado)
+    db.commit()
+    db.refresh(nuevo_estado)
+    return {"mensaje": "Actuación de RedJudicial registrada", "id": nuevo_estado.id}
+
+
+@app.get("/api/estados/pendientes", response_model=List[schemas.ActuacionEstadoResponse], dependencies=[ApiAuth])
+def listar_estados_pendientes(db: Session = Depends(get_db)):
+    return (
+        db.query(models.ActuacionEstado)
+        .filter(models.ActuacionEstado.estado_inyeccion == "PENDIENTE")
+        .order_by(models.ActuacionEstado.id.desc())
+        .all()
+    )
+
+
+@app.patch("/api/estados/{estado_id}/actualizar", dependencies=[ApiAuth])
+def actualizar_estado_inyeccion(
+    estado_id: int,
+    estado_inyeccion: str,
+    motivo_falla: Optional[str] = None,
+    db: Session = Depends(get_db),
+):
+    registro = db.query(models.ActuacionEstado).filter(models.ActuacionEstado.id == estado_id).first()
+    if not registro:
+        raise HTTPException(status_code=404, detail="Registro de estado no encontrado")
+    registro.estado_inyeccion = estado_inyeccion
+    if motivo_falla:
+        registro.motivo_falla = motivo_falla
+    db.commit()
+    return {"mensaje": f"Estado {estado_id} actualizado a {estado_inyeccion}"}
+
+
+@app.post("/api/demandas/cargar-excel", dependencies=[ApiAuth])
+async def cargar_demandas_desde_excel(archivo: UploadFile = File(...), db: Session = Depends(get_db)):
+    nombre = (archivo.filename or "").lower()
+    if not nombre.endswith((".xlsx", ".xls")):
+        raise HTTPException(status_code=400, detail="Formato inválido. Debe ser archivo Excel (.xlsx)")
+
+    try:
+        contenido = await archivo.read()
+        if not contenido:
+            raise HTTPException(status_code=400, detail="El archivo Excel está vacío.")
+
+        df = pd.read_excel(io.BytesIO(contenido))
+        if df.empty:
+            raise HTTPException(status_code=400, detail="La hoja de Excel no contiene filas de datos.")
+
+        faltantes = [col for col in COLUMNAS_EXCEL_REQUERIDAS if col not in df.columns]
+        if faltantes:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Columnas faltantes obligatorias: {', '.join(faltantes)}",
+            )
+
+        total_creadas = 0
+        for _, fila in df.iterrows():
+            identificacion = _celda_str(fila, "Identificacion_Demandado")
+            if not identificacion:
+                continue
+
+            demanda = models.DemandaNueva(
+                tipo_id_demandado=_celda_str(fila, "Tipo_Id_Demandado", "CC") or "CC",
+                identificacion_demandado=identificacion,
+                nombres_demandado=_celda_str(fila, "Nombres_Demandado"),
+                apellidos_demandado=_celda_str(fila, "Apellidos_Demandado"),
+                tipo_id_codeudor=_celda_opcional(fila, "Tipo_Id_Codeudor"),
+                identificacion_codeudor=_celda_opcional(fila, "Identificacion_Codeudor"),
+                nombres_codeudor=_celda_opcional(fila, "Nombres_Codeudor"),
+                apellidos_codeudor=_celda_opcional(fila, "Apellidos_Codeudor"),
+                cartera_dropdown=_celda_str(fila, "Cartera_Dropdown"),
+                nombre_demandante=_celda_str(fila, "Nombre_Demandante"),
+                nit_demandante=_celda_str(fila, "NIT_Demandante"),
+                fecha_ingreso_cartera=_celda_fecha(fila, "Fecha_Ingreso_Cartera"),
+                fecha_presentacion_demanda=_celda_fecha(fila, "Fecha_Presentacion_Demanda"),
+                monto_pretension=_celda_float(fila, "Monto_Pretension"),
+                tipo_bien_medida=_celda_opcional(fila, "Tipo_Bien_Medida"),
+                descripcion_medida=_celda_opcional(fila, "Descripcion_Medida"),
+                tipo_intervencion=_celda_str(fila, "Tipo_Intervencion", "ASECOB") or "ASECOB",
+                estado_robot="PENDIENTE",
+            )
+            db.add(demanda)
+            total_creadas += 1
+
+        db.commit()
+        return {"mensaje": f"Archivo procesado. Se cargaron {total_creadas} demandas nuevas a la cola."}
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error procesando la plantilla: {e}") from e
+
+
+@app.get("/api/demandas/descargar-plantilla", dependencies=[ApiAuth])
+def descargar_plantilla_excel():
+    output = io.BytesIO(generar_plantilla_bytes())
+    headers = {"Content-Disposition": 'attachment; filename="Plantilla_Radicacion_Inteligente.xlsx"'}
+    return StreamingResponse(
+        output,
+        headers=headers,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+
+
+@app.get("/api/demandas/pendientes", response_model=List[schemas.DemandaNuevaResponse], dependencies=[ApiAuth])
+def listar_demandas_pendientes(db: Session = Depends(get_db)):
+    return (
+        db.query(models.DemandaNueva)
+        .filter(models.DemandaNueva.estado_robot == "PENDIENTE")
+        .order_by(models.DemandaNueva.id.asc())
+        .all()
+    )
+
+
+@app.patch("/api/demandas/{demanda_id}/actualizar", dependencies=[ApiAuth])
+def actualizar_estado_demanda(
+    demanda_id: int,
+    estado_robot: str,
+    motivo_error: Optional[str] = None,
+    db: Session = Depends(get_db),
+):
+    demanda = db.query(models.DemandaNueva).filter(models.DemandaNueva.id == demanda_id).first()
+    if not demanda:
+        raise HTTPException(status_code=404, detail="Demanda no encontrada")
+    demanda.estado_robot = estado_robot
+    if motivo_error is not None:
+        demanda.motivo_error = motivo_error
+    db.commit()
+    return {"mensaje": f"Demanda {demanda_id} actualizada a {estado_robot}"}
+
+
+@app.get("/dashboard", response_class=HTMLResponse)
+def ver_dashboard(request: Request, db: Session = Depends(get_db)):
+    if DASHBOARD_PASSWORD and not acceso_dashboard_ok(request):
+        return RedirectResponse("/entrar", status_code=303)
+
+    pendientes_buzon = (
+        db.query(models.Notificacion)
+        .filter(models.Notificacion.estado_gestion == "PENDIENTE")
+        .order_by(models.Notificacion.id.desc())
+        .all()
+    )
+    estados_vigia = (
+        db.query(models.ActuacionEstado)
+        .filter(models.ActuacionEstado.estado_inyeccion == "PENDIENTE")
+        .order_by(models.ActuacionEstado.id.desc())
+        .all()
+    )
+    demandas_radicar = (
+        db.query(models.DemandaNueva)
+        .filter(models.DemandaNueva.estado_robot == "PENDIENTE")
+        .order_by(models.DemandaNueva.id.desc())
+        .all()
+    )
+    return templates.TemplateResponse(
+        request=request,
+        name="dashboard.html",
+        context={
+            "notificaciones": pendientes_buzon,
+            "estados": estados_vigia,
+            "demandas": demandas_radicar,
+        },
+    )
