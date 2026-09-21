@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GRUPO ASECOB · Torre de Control</title>
-    <link rel="icon" href="/static/img/marca-a.png" type="image/png">
+    <link rel="icon" href="/static/img/marca-a.jpg" type="image/png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
@@ -57,14 +57,20 @@
             place-items: center;
             animation: fadeRise 1s ease-out both;
             pointer-events: none;
+            /* mismo azul del JPG para que el borde del archivo desaparezca */
+            background: #184a93;
         }
         .logo-plane img {
             width: 100%;
             height: auto;
             display: block;
+            /* JPG ya trae el azul de marca: se funde con el hero */
             background: transparent;
-            /* sin sombra de “tarjeta” */
-            filter: none;
+            border: 0;
+            border-radius: 0;
+            box-shadow: none;
+            /* igualar tono al fondo para que no se note el “recuadro” */
+            mix-blend-mode: normal;
         }
         .copy {
             position: relative;
@@ -172,7 +178,7 @@
 <body>
     <main class="hero">
         <div class="logo-plane" aria-hidden="true">
-            <img src="/static/img/logo-grupo-asecob.png" alt="">
+            <img src="/static/img/logo-grupo-asecob.jpg" alt="">
         </div>
         <div class="copy">
             <h1 class="brand">
