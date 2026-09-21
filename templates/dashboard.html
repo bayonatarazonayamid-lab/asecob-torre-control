@@ -3,173 +3,444 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Entrar · GRUPO ASECOB</title>
+    <title>Torre de Control · GRUPO ASECOB</title>
     <link rel="icon" href="/static/img/marca-a.jpg" type="image/png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Outfit:wght@700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
             --asecob: #184a93;
             --asecob-deep: #0f2f61;
-            --paper: #f3f6fb;
+            --asecob-mid: #2260b8;
             --ink: #0b1c33;
+            --paper: #eef3f9;
+            --panel: rgba(255,255,255,0.92);
             --muted: #5a6f88;
+            --line: rgba(11,28,51,0.1);
+            --ok: #1f7a54;
+            --warn: #9a5b12;
             --danger: #9b2c2c;
-            --line: rgba(11, 28, 51, 0.12);
         }
         * { box-sizing: border-box; }
+        html, body { margin: 0; }
         body {
-            margin: 0;
-            min-height: 100vh;
-            min-height: 100dvh;
             font-family: "Manrope", sans-serif;
             color: var(--ink);
-            display: grid;
-            grid-template-columns: 1fr;
-            background: var(--paper);
-        }
-        @media (min-width: 880px) {
-            body { grid-template-columns: minmax(280px, 1.05fr) minmax(320px, 0.95fr); }
-        }
-        .brand-pane {
+            min-height: 100vh;
             background:
-                radial-gradient(ellipse 80% 60% at 30% 20%, rgba(255,255,255,0.14), transparent 55%),
-                linear-gradient(165deg, #2260b8, var(--asecob) 45%, var(--asecob-deep));
-            color: #fff;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            padding: 2.5rem 1.5rem;
-            text-align: center;
-            animation: fadeIn 0.7s ease-out both;
+                radial-gradient(ellipse 70% 45% at 0% 0%, rgba(24,74,147,0.12), transparent 55%),
+                radial-gradient(ellipse 50% 35% at 100% 0%, rgba(34,96,184,0.08), transparent 50%),
+                var(--paper);
         }
-        .brand-pane img {
-            width: min(78%, 320px);
-            height: auto;
+        .top {
             background: transparent;
+            color: var(--asecob-deep);
+            padding: 1.1rem 1.25rem 0.5rem;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.75rem;
             box-shadow: none;
-            border-radius: 0;
+            border-bottom: 0;
+        }
+        .brand-block {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        .brand-block img {
+            width: 2.55rem;
+            height: 2.55rem;
+            object-fit: cover;
+            /* JPG con azul de marca; sin marco extra */
+            background: transparent;
+            border-radius: 0.45rem;
+            padding: 0;
+            box-shadow: none;
             border: 0;
         }
-        .brand-pane p {
-            margin: 1.5rem 0 0;
-            max-width: 22rem;
-            font-size: 0.95rem;
-            line-height: 1.5;
-            color: rgba(255,255,255,0.82);
-        }
-        .form-pane {
-            display: grid;
-            place-items: center;
-            padding: 2rem 1.35rem;
-            animation: rise 0.55s ease-out 0.1s both;
-        }
-        form {
-            width: min(100%, 380px);
-        }
-        h1 {
-            margin: 0;
+        .brand {
             font-family: "Outfit", sans-serif;
             font-weight: 800;
-            font-size: 1.85rem;
-            letter-spacing: -0.03em;
+            font-size: clamp(1.15rem, 3vw, 1.45rem);
+            letter-spacing: -0.02em;
+            margin: 0;
+            line-height: 1.05;
             color: var(--asecob-deep);
         }
-        .sub { margin: 0.4rem 0 0; color: var(--muted); font-size: 0.95rem; line-height: 1.45; }
-        label {
-            display: block;
-            margin: 1.5rem 0 0.45rem;
-            font-size: 0.75rem;
-            font-weight: 800;
+        .brand-sub {
+            margin: 0.2rem 0 0;
+            font-size: 0.72rem;
+            color: var(--muted);
             letter-spacing: 0.08em;
             text-transform: uppercase;
-            color: var(--muted);
-        }
-        input {
-            width: 100%;
-            border: 1px solid var(--line);
-            border-radius: 0.55rem;
-            padding: 0.9rem 1rem;
-            font: inherit;
-            background: #fff;
-            color: var(--ink);
-        }
-        input:focus {
-            outline: 2px solid rgba(24, 74, 147, 0.35);
-            border-color: var(--asecob);
-        }
-        button {
-            margin-top: 1.35rem;
-            width: 100%;
-            border: 0;
-            border-radius: 0.55rem;
-            padding: 0.95rem;
-            font: inherit;
-            font-weight: 800;
-            background: var(--asecob);
-            color: #fff;
-            cursor: pointer;
-            transition: background 0.2s ease, transform 0.2s ease;
-        }
-        button:hover { background: var(--asecob-deep); transform: translateY(-1px); }
-        .error {
-            margin-top: 1rem;
-            padding: 0.75rem 0.9rem;
-            border-radius: 0.55rem;
-            background: #fde8e8;
-            color: var(--danger);
-            font-size: 0.9rem;
-            font-weight: 700;
-        }
-        .hint { margin-top: 1.25rem; font-size: 0.84rem; color: var(--muted); line-height: 1.5; }
-        a.back {
-            display: inline-block;
-            margin-top: 1.4rem;
-            color: var(--muted);
-            font-size: 0.88rem;
-            text-decoration: none;
             font-weight: 600;
         }
-        a.back:hover { color: var(--asecob); }
-        @media (max-width: 879px) {
-            .brand-pane { padding: 2rem 1.25rem 1.5rem; min-height: 42vh; }
-            .brand-pane img { width: min(70%, 240px); }
-            .brand-pane p { display: none; }
+        .pill {
+            display: inline-flex; align-items: center; gap: 0.4rem;
+            font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em;
+            padding: 0.4rem 0.7rem; border-radius: 999px;
+            background: rgba(31,122,84,0.12); color: var(--ok); border: 1px solid rgba(31,122,84,0.25);
         }
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
+        .pill::before {
+            content: ""; width: 0.45rem; height: 0.45rem; border-radius: 50%; background: #2f9e6c;
+            animation: pulse 2s ease-out infinite;
         }
+        .wrap { max-width: 1120px; margin: 0 auto; padding: 1.5rem 1.1rem 3rem; }
+        .hero {
+            margin-bottom: 1.5rem;
+            animation: rise 0.55s ease-out both;
+        }
+        .hero h1 {
+            font-family: "Outfit", sans-serif;
+            font-size: clamp(1.45rem, 3.5vw, 1.9rem);
+            letter-spacing: -0.02em;
+            margin: 0;
+            color: var(--asecob-deep);
+        }
+        .hero p { margin: 0.5rem 0 0; color: var(--muted); max-width: 40rem; line-height: 1.5; }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 0.75rem;
+            margin: 1.25rem 0 1.5rem;
+            animation: rise 0.55s ease-out 0.08s both;
+        }
+        @media (max-width: 640px) { .stats { grid-template-columns: 1fr; } }
+        .stat {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 0.85rem;
+            padding: 1rem 1.1rem;
+            backdrop-filter: blur(8px);
+            border-top: 3px solid var(--asecob);
+        }
+        .stat b {
+            display: block;
+            font-family: "Outfit", sans-serif;
+            font-size: 1.75rem;
+            letter-spacing: -0.03em;
+            line-height: 1;
+            color: var(--asecob-deep);
+        }
+        .stat span { display: block; margin-top: 0.35rem; font-size: 0.82rem; color: var(--muted); font-weight: 600; }
+        .tabs {
+            display: flex; flex-wrap: wrap; gap: 0.35rem;
+            border-bottom: 1px solid var(--line);
+            margin-bottom: 1.25rem;
+            animation: rise 0.55s ease-out 0.14s both;
+        }
+        .tabs button {
+            appearance: none; border: 0; background: transparent;
+            font: inherit; font-weight: 700; color: var(--muted);
+            padding: 0.7rem 0.95rem; cursor: pointer;
+            border-bottom: 2px solid transparent; margin-bottom: -1px;
+            transition: color 0.2s ease, border-color 0.2s ease;
+        }
+        .tabs button.active { color: var(--asecob); border-color: var(--asecob); }
+        .panel { animation: rise 0.4s ease-out both; }
+        .panel.hidden { display: none; }
+        .toolbar {
+            display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end;
+            gap: 0.75rem; margin-bottom: 0.9rem;
+        }
+        .toolbar h2 { margin: 0; font-size: 1.15rem; font-family: "Outfit", sans-serif; color: var(--asecob-deep); }
+        .toolbar p { margin: 0.25rem 0 0; font-size: 0.85rem; color: var(--muted); }
+        .btn {
+            appearance: none; border: 0; cursor: pointer; font: inherit; font-weight: 700;
+            border-radius: 0.45rem; padding: 0.55rem 0.95rem; font-size: 0.82rem;
+            transition: transform 0.15s ease, background 0.15s ease;
+            text-decoration: none;
+            display: inline-flex; align-items: center;
+        }
+        .btn:hover { transform: translateY(-1px); }
+        .btn-ghost { background: rgba(24,74,147,0.08); color: var(--asecob-deep); }
+        .btn-ink { background: var(--asecob-deep); color: #f7f9fb; }
+        .btn-ink:hover { background: var(--asecob); }
+        .btn-asecob { background: var(--asecob); color: #fff; }
+        .btn-asecob:hover { background: var(--asecob-deep); }
+        .table-wrap {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 0.85rem;
+            overflow: auto;
+            backdrop-filter: blur(8px);
+        }
+        table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+        th {
+            text-align: left; padding: 0.85rem 0.95rem;
+            font-size: 0.7rem; letter-spacing: 0.06em; text-transform: uppercase;
+            color: var(--muted); border-bottom: 1px solid var(--line); background: rgba(24,74,147,0.04);
+        }
+        td { padding: 0.9rem 0.95rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+        tr:last-child td { border-bottom: 0; }
+        tr:hover td { background: rgba(24,74,147,0.04); }
+        .mono { font-variant-numeric: tabular-nums; font-family: ui-monospace, monospace; font-weight: 700; }
+        .truncate { max-width: 16rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .chip {
+            display: inline-block; font-size: 0.72rem; font-weight: 700;
+            padding: 0.2rem 0.5rem; border-radius: 999px; border: 1px solid transparent;
+        }
+        .chip-amber { background: #fff4e5; color: var(--warn); border-color: #f0d2a8; }
+        .chip-blue { background: #e8f1fb; color: #1d4f91; border-color: #bfd3ef; }
+        .chip-red { background: #fde8e8; color: var(--danger); border-color: #f0bdbd; }
+        .chip-slate { background: #eef1f4; color: #445566; border-color: #d5dde5; }
+        .empty {
+            text-align: center; padding: 2.75rem 1.25rem; color: var(--muted);
+        }
+        .empty strong { display: block; color: var(--ink); font-size: 1rem; margin-bottom: 0.35rem; }
+        .demandas-box {
+            display: flex; flex-wrap: wrap; gap: 1rem; justify-content: space-between; align-items: flex-start;
+            background: var(--panel); border: 1px solid var(--line); border-radius: 0.85rem;
+            padding: 1.15rem 1.2rem; margin-bottom: 1rem;
+        }
+        .demandas-box h2 { margin: 0; font-family: "Outfit", sans-serif; font-size: 1.15rem; color: var(--asecob-deep); }
+        .demandas-box p { margin: 0.4rem 0 0; color: var(--muted); font-size: 0.88rem; max-width: 28rem; line-height: 1.45; }
+        .actions { display: flex; flex-wrap: wrap; gap: 0.55rem; align-items: center; }
+        .msg { display: none; margin-bottom: 0.9rem; padding: 0.8rem 1rem; border-radius: 0.55rem; font-size: 0.9rem; font-weight: 600; }
+        .msg.show { display: block; }
+        .msg.ok { background: #e6f6ee; color: var(--ok); border: 1px solid #b7e4cb; }
+        .msg.err { background: #fde8e8; color: var(--danger); border: 1px solid #f0bdbd; }
+        .msg.wait { background: #eef1f4; color: var(--muted); border: 1px solid var(--line); }
+        .foot {
+            margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--line);
+            font-size: 0.8rem; color: var(--muted); display: flex; flex-wrap: wrap; gap: 0.75rem; justify-content: space-between;
+        }
+        .foot a { color: var(--asecob); font-weight: 600; text-decoration: none; }
+        input[type=file] { font-size: 0.78rem; max-width: 14rem; }
         @keyframes rise {
-            from { opacity: 0; transform: translateY(14px); }
+            from { opacity: 0; transform: translateY(12px); }
             to { opacity: 1; transform: none; }
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(61,207,138,0.5); }
+            70% { box-shadow: 0 0 0 8px rgba(61,207,138,0); }
+            100% { box-shadow: 0 0 0 0 rgba(61,207,138,0); }
         }
     </style>
 </head>
 <body>
-    <aside class="brand-pane" aria-hidden="true">
-        <img src="/static/img/logo-grupo-asecob.jpg" alt="">
-        <p>Asesorías y cobranzas ejecutivas · Torre de Control del equipo jurídico</p>
-    </aside>
-    <div class="form-pane">
-        <form method="post" action="/entrar" autocomplete="current-password">
-            <h1>Entrar</h1>
-            <p class="sub">Acceso del equipo a la Torre de Control de GRUPO ASECOB.</p>
-            {% if error %}
-            <p class="error">{{ error }}</p>
-            {% endif %}
-            <label for="clave">Clave del equipo</label>
-            <input id="clave" name="clave" type="password" required autofocus placeholder="Clave compartida del estudio">
-            <button type="submit">Entrar al tablero</button>
-            <p class="hint">
-                Es la misma clave para los cinco abogados.
-                La define coordinación en Render → Environment → <strong>DASHBOARD_PASSWORD</strong>.
-                Si esa variable está vacía, entre directo a <a href="/dashboard">/dashboard</a>.
-            </p>
-            <a class="back" href="/">← Volver al inicio</a>
-        </form>
-    </div>
+    <header class="top">
+        <div class="brand-block">
+            <img src="/static/img/marca-a.jpg" alt="GRUPO ASECOB">
+            <div>
+                <p class="brand">GRUPO ASECOB</p>
+                <p class="brand-sub">Torre de Control · Equipo jurídico</p>
+            </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:0.65rem;flex-wrap:wrap;">
+            <span class="pill">En línea</span>
+            <a href="/salir" class="btn btn-ghost">Salir</a>
+        </div>
+    </header>
+
+    <main class="wrap">
+        <section class="hero">
+            <h1>Mesa de trabajo del equipo</h1>
+            <p>Todo el estudio trabaja aquí: revise el buzón, siga actuaciones y cargue demandas nuevas. Solo este tablero — sin archivos técnicos.</p>
+        </section>
+
+        <div class="stats">
+            <div class="stat"><b>{{ notificaciones|length }}</b><span>En el buzón</span></div>
+            <div class="stat"><b>{{ estados|length }}</b><span>Actuaciones por registrar</span></div>
+            <div class="stat"><b>{{ demandas|length }}</b><span>Demandas en cola</span></div>
+        </div>
+
+        <nav class="tabs" role="tablist">
+            <button type="button" class="active" id="btn-tab-buzon" onclick="cambiarTab('tab-buzon')">Buzón ({{ notificaciones|length }})</button>
+            <button type="button" id="btn-tab-estados" onclick="cambiarTab('tab-estados')">Actuaciones ({{ estados|length }})</button>
+            <button type="button" id="btn-tab-demandas" onclick="cambiarTab('tab-demandas')">Demandas ({{ demandas|length }})</button>
+        </nav>
+
+        <section id="tab-buzon" class="panel">
+            <div class="toolbar">
+                <div>
+                    <h2>Providencias entrantes</h2>
+                    <p>Cuando ya gestionó una alerta, márquela como tramitada.</p>
+                </div>
+                <button type="button" class="btn btn-ghost" onclick="location.reload()">Actualizar</button>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Fecha</th>
+                            <th>Tipo</th>
+                            <th>Detalle</th>
+                            <th>Asunto</th>
+                            <th>Asignado</th>
+                            <th>Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for n in notificaciones %}
+                        <tr>
+                            <td class="mono">{{ n.id }}</td>
+                            <td style="white-space:nowrap;font-size:0.8rem;">{{ n.fecha_recepcion.strftime('%Y-%m-%d %H:%M') }}</td>
+                            <td>
+                                {% if n.clasificacion_ia == 'OFICIO_MEDIDA_CAUTELAR' %}
+                                    <span class="chip chip-amber">Medida cautelar</span>
+                                {% elif n.clasificacion_ia == 'FIJACION_AUDIENCIA' %}
+                                    <span class="chip chip-blue">Audiencia</span>
+                                {% elif n.clasificacion_ia in ['TUTELA', 'DESACATO'] %}
+                                    <span class="chip chip-red">{{ n.clasificacion_ia }}</span>
+                                {% else %}
+                                    <span class="chip chip-slate">{{ n.clasificacion_ia or 'Otro' }}</span>
+                                {% endif %}
+                            </td>
+                            <td style="font-size:0.82rem;">{{ n.sub_embargo or n.fecha_audiencia or '—' }}</td>
+                            <td class="truncate" title="{{ n.asunto_original }}">{{ n.asunto_original }}</td>
+                            <td style="font-size:0.82rem;">{{ n.asignado_a or 'Sin asignar' }}</td>
+                            <td><button type="button" class="btn btn-asecob" onclick="marcarCompletado({{ n.id }})">Tramitado</button></td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="7"><div class="empty"><strong>Buzón al día</strong>Cuando lleguen nuevas providencias al estudio, aparecerán aquí automáticamente.</div></td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section id="tab-estados" class="panel hidden">
+            <div class="toolbar">
+                <div>
+                    <h2>Actuaciones pendientes</h2>
+                    <p>Autos detectados en vigilancia que aún deben registrarse en Redelex.</p>
+                </div>
+                <button type="button" class="btn btn-ghost" onclick="location.reload()">Actualizar</button>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Radicado</th>
+                            <th>Fecha</th>
+                            <th>Partes</th>
+                            <th>Etapa</th>
+                            <th>Actuación</th>
+                            <th>Resumen</th>
+                            <th>Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for e in estados %}
+                        <tr style="font-size:0.82rem;">
+                            <td class="mono" style="white-space:nowrap;">{{ e.radicado }}</td>
+                            <td style="white-space:nowrap;">{{ e.fecha_notificacion }}</td>
+                            <td class="truncate">{{ e.demandante }} vs {{ e.demandado }}</td>
+                            <td><strong>{{ e.etapa_ia }}</strong></td>
+                            <td><strong>{{ e.actuacion_ia }}</strong></td>
+                            <td style="max-width:18rem;white-space:normal;">{{ e.resumen_ia }}</td>
+                            <td><span class="chip chip-amber">{{ e.estado_inyeccion }}</span></td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="7"><div class="empty"><strong>Sin actuaciones pendientes</strong>Cuando la vigilancia de la oficina envíe novedades, las verá en esta lista.</div></td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section id="tab-demandas" class="panel hidden">
+            <div class="demandas-box">
+                <div>
+                    <h2>Demandas nuevas</h2>
+                    <p>Descargue la plantilla, llénela en Excel (use las listas desplegables) y súbala aquí. El estudio la tomará en cola para radicar.</p>
+                </div>
+                <div class="actions">
+                    <a class="btn btn-ink" href="/api/demandas/descargar-plantilla" style="text-decoration:none;">Descargar plantilla</a>
+                    <input type="file" id="archivo-excel" accept=".xlsx,.xls">
+                    <button type="button" class="btn btn-asecob" onclick="subirExcel()">Cargar archivo</button>
+                </div>
+            </div>
+            <div id="mensaje-carga" class="msg"></div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Cartera</th>
+                            <th>Demandado</th>
+                            <th>Identificación</th>
+                            <th>Pretensión</th>
+                            <th>Medida</th>
+                            <th>Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for d in demandas %}
+                        <tr style="font-size:0.82rem;">
+                            <td class="mono">{{ d.id }}</td>
+                            <td><strong>{{ d.cartera_dropdown }}</strong></td>
+                            <td>{{ d.nombres_demandado }} {{ d.apellidos_demandado }}</td>
+                            <td class="mono">{{ d.tipo_id_demandado }} {{ d.identificacion_demandado }}</td>
+                            <td><strong>${{ "{:,.0f}".format(d.monto_pretension) }}</strong></td>
+                            <td>{{ d.tipo_bien_medida or '—' }}</td>
+                            <td><span class="chip chip-amber">{{ d.estado_robot }}</span></td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="7"><div class="empty"><strong>Cola vacía</strong>Cuando cargue una plantilla con filas nuevas, aparecerán aquí.</div></td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <footer class="foot">
+            <span>GRUPO ASECOB SAS · Torre de Control</span>
+            <a href="/">Inicio</a>
+        </footer>
+    </main>
+
+    <script>
+        function cambiarTab(tabId) {
+            ['tab-buzon', 'tab-estados', 'tab-demandas'].forEach(id => {
+                document.getElementById(id).classList.add('hidden');
+                document.getElementById('btn-' + id).classList.remove('active');
+            });
+            document.getElementById(tabId).classList.remove('hidden');
+            document.getElementById('btn-' + tabId).classList.add('active');
+        }
+
+        function marcarCompletado(id) {
+            fetch(`/api/notificaciones/${id}/completar`, { method: 'PATCH', credentials: 'include' })
+                .then(res => {
+                    if (res.ok) location.reload();
+                    else alert('No se pudo marcar como tramitado. Vuelva a entrar con la clave del equipo.');
+                })
+                .catch(() => alert('Sin conexión con el tablero. Intente de nuevo.'));
+        }
+
+        function subirExcel() {
+            const inputFile = document.getElementById('archivo-excel');
+            const caja = document.getElementById('mensaje-carga');
+            if (!inputFile.files.length) { alert('Seleccione un archivo Excel (.xlsx).'); return; }
+            const formData = new FormData();
+            formData.append('archivo', inputFile.files[0]);
+            caja.className = 'msg show wait';
+            caja.textContent = 'Subiendo y validando la plantilla…';
+
+            fetch('/api/demandas/cargar-excel', { method: 'POST', body: formData, credentials: 'include' })
+                .then(async res => {
+                    const data = await res.json().catch(() => ({}));
+                    if (!res.ok) {
+                        const detalle = data.detail || 'Error al cargar';
+                        caja.className = 'msg show err';
+                        caja.textContent = typeof detalle === 'string' ? detalle : JSON.stringify(detalle);
+                        return;
+                    }
+                    caja.className = 'msg show ok';
+                    caja.textContent = data.mensaje || 'Carga exitosa';
+                    setTimeout(() => location.reload(), 900);
+                })
+                .catch(() => {
+                    caja.className = 'msg show err';
+                    caja.textContent = 'No se pudo subir el archivo. Revise su conexión.';
+                });
+        }
+    </script>
 </body>
 </html>
