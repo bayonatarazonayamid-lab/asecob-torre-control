@@ -93,11 +93,18 @@ class DemandaNuevaCreate(BaseModel):
   tipo_bien_medida: Optional[str] = None
   descripcion_medida: Optional[str] = None
   tipo_intervencion: Optional[str] = "ASECOB"
+  radicacion: Optional[str] = None
+  referencia: Optional[str] = None
+  clase_proceso: Optional[str] = None
+  tipo_juzgado: Optional[str] = None
+  numero_juzgado: Optional[str] = None
+  ciudad_juzgado: Optional[str] = None
 
 
 class DemandaNuevaResponse(DemandaNuevaCreate):
   id: int
   estado_robot: str
+  motivo_error: Optional[str] = None
   fecha_creacion: datetime
 
   class Config:

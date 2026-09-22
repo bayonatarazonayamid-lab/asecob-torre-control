@@ -113,7 +113,16 @@ class DemandaNueva(Base):
     tipo_bien_medida = Column(String(100), nullable=True)
     descripcion_medida = Column(Text, nullable=True)
     tipo_intervencion = Column(String(50), default="ASECOB")
+
+    # Redelex nuevo.asp (radicación / despacho)
+    radicacion = Column(String(50), nullable=True)           # vacío → checkbox sin_numero
+    referencia = Column(Text, nullable=True)
+    clase_proceso = Column(String(100), nullable=True)
+    tipo_juzgado = Column(String(150), nullable=True)        # etiqueta Despacho
+    numero_juzgado = Column(String(4), nullable=True)        # default "0"
+    ciudad_juzgado = Column(String(150), nullable=True)      # etiqueta o value Redelex
     
     # Control operativo del bot de radicación
     estado_robot = Column(String(50), default="PENDIENTE", index=True)  # PENDIENTE, RADICADO, ERROR
+    motivo_error = Column(Text, nullable=True)
     fecha_creacion = Column(DateTime, default=datetime.datetime.utcnow)

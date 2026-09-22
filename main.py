@@ -38,9 +38,19 @@ def _asegurar_columnas():
     if "demandas_nuevas" not in insp.get_table_names():
         return
     columnas = {c["name"] for c in insp.get_columns("demandas_nuevas")}
-    if "motivo_error" not in columnas:
-        with engine.begin() as conn:
-            conn.execute(text("ALTER TABLE demandas_nuevas ADD COLUMN motivo_error TEXT"))
+    nuevas = {
+        "motivo_error": "TEXT",
+        "radicacion": "VARCHAR(50)",
+        "referencia": "TEXT",
+        "clase_proceso": "VARCHAR(100)",
+        "tipo_juzgado": "VARCHAR(150)",
+        "numero_juzgado": "VARCHAR(4)",
+        "ciudad_juzgado": "VARCHAR(150)",
+    }
+    with engine.begin() as conn:
+        for nombre, tipo in nuevas.items():
+            if nombre not in columnas:
+                conn.execute(text(f"ALTER TABLE demandas_nuevas ADD COLUMN {nombre} {tipo}"))
 
 
 _asegurar_columnas()
@@ -48,7 +58,7 @@ _asegurar_columnas()
 app = FastAPI(
     title="Torre de Control - GRUPO ASECOB SAS",
     description="Backend centralizado para correo CENDOJ, estados de RedJudicial y radicación en Redelex.",
-    version="2.3.0",
+    version="2.4.0",
 )
 
 app.add_middleware(
@@ -66,7 +76,7 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 ApiAuth = Depends(verificar_api_key)
 DashAuth = Depends(verificar_acceso_dashboard)
 DASHBOARD_PASSWORD = getenv("DASHBOARD_PASSWORD")
-APP_VERSION = "2.3.0"
+APP_VERSION = "2.4.0"
 
 COLUMNAS_EXCEL_REQUERIDAS = [
     "Tipo_Id_Demandado",
@@ -330,6 +340,10 @@ async def cargar_demandas_desde_excel(archivo: UploadFile = File(...), db: Sessi
             if not identificacion:
                 continue
 
+            numero_juz = _celda_str(fila, "Numero_Juzgado")
+            if not numero_juz:
+                numero_juz = "0"
+
             demanda = models.DemandaNueva(
                 tipo_id_demandado=_celda_str(fila, "Tipo_Id_Demandado", "CC") or "CC",
                 identificacion_demandado=identificacion,
@@ -348,6 +362,12 @@ async def cargar_demandas_desde_excel(archivo: UploadFile = File(...), db: Sessi
                 tipo_bien_medida=_celda_opcional(fila, "Tipo_Bien_Medida"),
                 descripcion_medida=_celda_opcional(fila, "Descripcion_Medida"),
                 tipo_intervencion=_celda_str(fila, "Tipo_Intervencion", "ASECOB") or "ASECOB",
+                radicacion=_celda_opcional(fila, "Radicacion"),
+                referencia=_celda_opcional(fila, "Referencia"),
+                clase_proceso=_celda_opcional(fila, "Clase_Proceso"),
+                tipo_juzgado=_celda_opcional(fila, "Tipo_Juzgado"),
+                numero_juzgado=numero_juz[:4],
+                ciudad_juzgado=_celda_opcional(fila, "Ciudad_Juzgado"),
                 estado_robot="PENDIENTE",
             )
             db.add(demanda)
