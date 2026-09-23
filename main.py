@@ -258,9 +258,44 @@ def marcar_notificacion_gestionada(
 
 @app.post("/api/estados/sincronizar", response_model=dict, dependencies=[ApiAuth])
 def registrar_estado_redjudicial(estado: schemas.ActuacionEstadoCreate, db: Session = Depends(get_db)):
+    rad = estado.radicado.strip()
+    fecha = estado.fecha_notificacion
+
+    # Autos no disponibles: actualizar si ya hay seguimiento abierto (evita duplicados al re-escanear)
+    if estado.estado_inyeccion == "AUTO_NO_DISPONIBLE":
+        existente = (
+            db.query(models.ActuacionEstado)
+            .filter(
+                models.ActuacionEstado.radicado == rad,
+                models.ActuacionEstado.fecha_notificacion == fecha,
+                models.ActuacionEstado.estado_inyeccion.in_(
+                    ("AUTO_NO_DISPONIBLE", "OMITIDO")
+                ),
+            )
+            .order_by(models.ActuacionEstado.id.desc())
+            .first()
+        )
+        if existente:
+            existente.demandante = estado.demandante.strip()
+            existente.demandado = estado.demandado.strip()
+            existente.descripcion_actuacion = estado.descripcion_actuacion
+            existente.etapa_ia = estado.etapa_ia
+            existente.actuacion_ia = estado.actuacion_ia
+            existente.resumen_ia = estado.resumen_ia
+            existente.ruta_pdf_local = None
+            existente.pdf_faltante = True
+            existente.motivo_falla = estado.motivo_falla or existente.motivo_falla
+            db.commit()
+            db.refresh(existente)
+            return {
+                "mensaje": "Seguimiento AUTO_NO_DISPONIBLE actualizado",
+                "id": existente.id,
+                "actualizado": True,
+            }
+
     nuevo_estado = models.ActuacionEstado(
-        fecha_notificacion=estado.fecha_notificacion,
-        radicado=estado.radicado.strip(),
+        fecha_notificacion=fecha,
+        radicado=rad,
         demandante=estado.demandante.strip(),
         demandado=estado.demandado.strip(),
         descripcion_actuacion=estado.descripcion_actuacion,
@@ -274,7 +309,7 @@ def registrar_estado_redjudicial(estado: schemas.ActuacionEstadoCreate, db: Sess
     )
 
     proceso_existente = (
-        db.query(models.Proceso).filter(models.Proceso.radicado == estado.radicado.strip()).first()
+        db.query(models.Proceso).filter(models.Proceso.radicado == rad).first()
     )
     if proceso_existente:
         nuevo_estado.proceso_id = proceso_existente.id
@@ -302,12 +337,21 @@ def listar_estados_pendientes(db: Session = Depends(get_db)):
 )
 def listar_estados_seguimiento_manual(db: Session = Depends(get_db)):
     """Autos no disponibles en micrositios u otros que requieren gestión humana."""
+    from sqlalchemy import or_, and_
+
     return (
         db.query(models.ActuacionEstado)
         .filter(
-            models.ActuacionEstado.estado_inyeccion.in_(
-                ("AUTO_NO_DISPONIBLE", "OMITIDO")
-            )
+            models.ActuacionEstado.estado_inyeccion != "GESTIONADO",
+            or_(
+                models.ActuacionEstado.estado_inyeccion.in_(
+                    ("AUTO_NO_DISPONIBLE", "OMITIDO")
+                ),
+                and_(
+                    models.ActuacionEstado.estado_inyeccion == "PENDIENTE",
+                    models.ActuacionEstado.actuacion_ia.ilike("%AUTO NO DISPONIBLE%"),
+                ),
+            ),
         )
         .order_by(models.ActuacionEstado.id.desc())
         .all()
@@ -472,12 +516,21 @@ def ver_dashboard(request: Request, db: Session = Depends(get_db)):
         .order_by(models.ActuacionEstado.id.desc())
         .all()
     )
+    from sqlalchemy import or_, and_
+
     autos_no_disponibles = (
         db.query(models.ActuacionEstado)
         .filter(
-            models.ActuacionEstado.estado_inyeccion.in_(
-                ("AUTO_NO_DISPONIBLE", "OMITIDO")
-            )
+            models.ActuacionEstado.estado_inyeccion != "GESTIONADO",
+            or_(
+                models.ActuacionEstado.estado_inyeccion.in_(
+                    ("AUTO_NO_DISPONIBLE", "OMITIDO")
+                ),
+                and_(
+                    models.ActuacionEstado.estado_inyeccion == "PENDIENTE",
+                    models.ActuacionEstado.actuacion_ia.ilike("%AUTO NO DISPONIBLE%"),
+                ),
+            ),
         )
         .order_by(models.ActuacionEstado.id.desc())
         .all()
