@@ -42,6 +42,8 @@ class ActuacionEstadoCreate(BaseModel):
   demandante: str
   demandado: str
   descripcion_actuacion: str
+  juzgado: Optional[str] = None
+  ciudad_juzgado: Optional[str] = None
   etapa_ia: str
   actuacion_ia: str
   resumen_ia: str
@@ -58,6 +60,8 @@ class ActuacionEstadoResponse(BaseModel):
   demandante: str
   demandado: str
   descripcion_actuacion: str
+  juzgado: Optional[str] = None
+  ciudad_juzgado: Optional[str] = None
   etapa_ia: str
   actuacion_ia: str
   resumen_ia: str
