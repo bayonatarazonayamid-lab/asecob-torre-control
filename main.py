@@ -58,7 +58,7 @@ _asegurar_columnas()
 app = FastAPI(
     title="Torre de Control - GRUPO ASECOB SAS",
     description="Backend centralizado para correo CENDOJ, estados de RedJudicial y radicación en Redelex.",
-    version="2.4.0",
+    version="2.5.0",
 )
 
 app.add_middleware(
@@ -76,7 +76,7 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 ApiAuth = Depends(verificar_api_key)
 DashAuth = Depends(verificar_acceso_dashboard)
 DASHBOARD_PASSWORD = getenv("DASHBOARD_PASSWORD")
-APP_VERSION = "2.4.0"
+APP_VERSION = "2.5.0"
 
 COLUMNAS_EXCEL_REQUERIDAS = [
     "Tipo_Id_Demandado",
@@ -295,6 +295,40 @@ def listar_estados_pendientes(db: Session = Depends(get_db)):
     )
 
 
+@app.get(
+    "/api/estados/seguimiento-manual",
+    response_model=List[schemas.ActuacionEstadoResponse],
+    dependencies=[ApiAuth],
+)
+def listar_estados_seguimiento_manual(db: Session = Depends(get_db)):
+    """Autos no disponibles en micrositios u otros que requieren gestión humana."""
+    return (
+        db.query(models.ActuacionEstado)
+        .filter(
+            models.ActuacionEstado.estado_inyeccion.in_(
+                ("AUTO_NO_DISPONIBLE", "OMITIDO")
+            )
+        )
+        .order_by(models.ActuacionEstado.id.desc())
+        .all()
+    )
+
+
+@app.patch("/api/estados/{estado_id}/completar-seguimiento", dependencies=[ApiAuth])
+def marcar_seguimiento_gestionado(
+    estado_id: int = Path(..., description="ID del estado RedJudicial"),
+    db: Session = Depends(get_db),
+):
+    registro = db.query(models.ActuacionEstado).filter(models.ActuacionEstado.id == estado_id).first()
+    if not registro:
+        raise HTTPException(status_code=404, detail="Registro de estado no encontrado")
+    registro.estado_inyeccion = "GESTIONADO"
+    if not registro.motivo_falla:
+        registro.motivo_falla = "Seguimiento manual cerrado desde el tablero"
+    db.commit()
+    return {"mensaje": f"Estado {estado_id} marcado como GESTIONADO"}
+
+
 @app.patch("/api/estados/{estado_id}/actualizar", dependencies=[ApiAuth])
 def actualizar_estado_inyeccion(
     estado_id: int,
@@ -438,6 +472,16 @@ def ver_dashboard(request: Request, db: Session = Depends(get_db)):
         .order_by(models.ActuacionEstado.id.desc())
         .all()
     )
+    autos_no_disponibles = (
+        db.query(models.ActuacionEstado)
+        .filter(
+            models.ActuacionEstado.estado_inyeccion.in_(
+                ("AUTO_NO_DISPONIBLE", "OMITIDO")
+            )
+        )
+        .order_by(models.ActuacionEstado.id.desc())
+        .all()
+    )
     demandas_radicar = (
         db.query(models.DemandaNueva)
         .filter(models.DemandaNueva.estado_robot == "PENDIENTE")
@@ -450,6 +494,7 @@ def ver_dashboard(request: Request, db: Session = Depends(get_db)):
         context={
             "notificaciones": pendientes_buzon,
             "estados": estados_vigia,
+            "autos_no_disponibles": autos_no_disponibles,
             "demandas": demandas_radicar,
         },
     )
