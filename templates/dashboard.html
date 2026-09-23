@@ -256,6 +256,7 @@
             <button type="button" id="btn-tab-estados" onclick="cambiarTab('tab-estados')">Actuaciones ({{ estados|length }})</button>
             <button type="button" id="btn-tab-seguimiento" onclick="cambiarTab('tab-seguimiento')">Seguimiento ({{ autos_no_disponibles|length }})</button>
             <button type="button" id="btn-tab-demandas" onclick="cambiarTab('tab-demandas')">Demandas ({{ demandas|length }})</button>
+            <button type="button" id="btn-tab-reglas" onclick="cambiarTab('tab-reglas')">Reglas correo ({{ reglas_correo|length }})</button>
         </nav>
 
         <section id="tab-buzon" class="panel">
@@ -433,6 +434,92 @@
             </div>
         </section>
 
+        <section id="tab-reglas" class="panel hidden">
+            <div class="toolbar">
+                <div>
+                    <h2>Reglas del correo (Cartero)</h2>
+                    <p>Defina qué hacer con cada remitente, dominio o asunto. El robot las descarga al iniciar el ciclo Correo. Menor prioridad = se evalúa primero.</p>
+                </div>
+                <button type="button" class="btn btn-ghost" onclick="location.reload()">Actualizar</button>
+            </div>
+
+            <div class="demandas-box" style="margin-bottom:1rem;">
+                <div>
+                    <h2 style="font-size:1rem;">Nueva regla</h2>
+                    <p>Ejemplos: ignorar <em>facturacion@cliente.com</em>, dominio <em>mailer-daemon</em>, o forzar buscar radicado en otro dominio judicial.</p>
+                </div>
+                <form id="form-regla" onsubmit="return crearRegla(event)" style="display:grid;gap:0.55rem;width:100%;max-width:36rem;">
+                    <input type="text" id="regla-nombre" placeholder="Nombre (ej. Contabilidad X)" required style="padding:0.5rem;border:1px solid var(--line);border-radius:0.5rem;">
+                    <div style="display:flex;flex-wrap:wrap;gap:0.5rem;">
+                        <select id="regla-tipo" style="padding:0.5rem;border-radius:0.5rem;border:1px solid var(--line);">
+                            <option value="CORREO">Correo exacto</option>
+                            <option value="DOMINIO">Dominio</option>
+                            <option value="ASUNTO">Asunto contiene</option>
+                        </select>
+                        <select id="regla-accion" style="padding:0.5rem;border-radius:0.5rem;border:1px solid var(--line);">
+                            <option value="IGNORAR">Ignorar (no reenviar)</option>
+                            <option value="ALERTA_MANUAL">Alerta manual</option>
+                            <option value="BUSCAR_RADICADO">Buscar radicado / procesar</option>
+                        </select>
+                        <input type="number" id="regla-prio" value="100" min="1" max="999" title="Prioridad" style="width:5rem;padding:0.5rem;border-radius:0.5rem;border:1px solid var(--line);">
+                    </div>
+                    <input type="text" id="regla-patron" placeholder="Patrón: email, dominio o texto de asunto" required style="padding:0.5rem;border:1px solid var(--line);border-radius:0.5rem;">
+                    <input type="text" id="regla-asignado" placeholder="Asignado (opcional: email o TODOS)" style="padding:0.5rem;border:1px solid var(--line);border-radius:0.5rem;">
+                    <input type="text" id="regla-notas" placeholder="Notas (opcional)" style="padding:0.5rem;border:1px solid var(--line);border-radius:0.5rem;">
+                    <div class="actions" style="justify-content:flex-start;">
+                        <button type="submit" class="btn btn-asecob">Guardar regla</button>
+                        <button type="button" class="btn btn-ink" onclick="sembrarDefaults()">Cargar reglas base</button>
+                    </div>
+                </form>
+                <div id="mensaje-regla" class="msg" style="margin-top:0.75rem;"></div>
+            </div>
+
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Pri.</th>
+                            <th>Nombre</th>
+                            <th>Tipo</th>
+                            <th>Patrón</th>
+                            <th>Acción</th>
+                            <th>Asignado</th>
+                            <th>Activa</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for r in reglas_correo %}
+                        <tr style="font-size:0.82rem;">
+                            <td class="mono">{{ r.prioridad }}</td>
+                            <td><strong>{{ r.nombre }}</strong>{% if r.notas %}<br><span style="color:var(--muted);font-size:0.75rem;">{{ r.notas }}</span>{% endif %}</td>
+                            <td><span class="chip chip-slate">{{ r.tipo_match }}</span></td>
+                            <td class="mono truncate" title="{{ r.patron }}">{{ r.patron }}</td>
+                            <td>
+                                {% if r.accion == 'IGNORAR' %}
+                                    <span class="chip chip-amber">IGNORAR</span>
+                                {% elif r.accion == 'ALERTA_MANUAL' %}
+                                    <span class="chip chip-red">ALERTA</span>
+                                {% else %}
+                                    <span class="chip chip-blue">BUSCAR RADICADO</span>
+                                {% endif %}
+                            </td>
+                            <td style="font-size:0.78rem;">{{ r.asignado_a or '—' }}</td>
+                            <td>
+                                <button type="button" class="btn btn-ghost" onclick="toggleRegla({{ r.id }}, {{ 'false' if r.activo else 'true' }})">
+                                    {{ 'Sí' if r.activo else 'No' }}
+                                </button>
+                            </td>
+                            <td><button type="button" class="btn btn-ghost" onclick="borrarRegla({{ r.id }})">Eliminar</button></td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="8"><div class="empty"><strong>Sin reglas aún</strong>Pulse «Cargar reglas base» o cree la primera regla arriba. Hasta entonces el Cartero usa exclusiones locales de respaldo.</div></td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
         <footer class="foot">
             <span>GRUPO ASECOB SAS · Torre de Control</span>
             <a href="/">Inicio</a>
@@ -441,7 +528,7 @@
 
     <script>
         function cambiarTab(tabId) {
-            ['tab-buzon', 'tab-estados', 'tab-seguimiento', 'tab-demandas'].forEach(id => {
+            ['tab-buzon', 'tab-estados', 'tab-seguimiento', 'tab-demandas', 'tab-reglas'].forEach(id => {
                 document.getElementById(id).classList.add('hidden');
                 document.getElementById('btn-' + id).classList.remove('active');
             });
@@ -465,6 +552,74 @@
                     else alert('No se pudo cerrar el seguimiento. Vuelva a entrar con la clave del equipo.');
                 })
                 .catch(() => alert('Sin conexión con el tablero. Intente de nuevo.'));
+        }
+
+        function crearRegla(ev) {
+            ev.preventDefault();
+            const caja = document.getElementById('mensaje-regla');
+            const body = {
+                nombre: document.getElementById('regla-nombre').value.trim(),
+                tipo_match: document.getElementById('regla-tipo').value,
+                accion: document.getElementById('regla-accion').value,
+                patron: document.getElementById('regla-patron').value.trim(),
+                prioridad: parseInt(document.getElementById('regla-prio').value, 10) || 100,
+                asignado_a: document.getElementById('regla-asignado').value.trim() || null,
+                notas: document.getElementById('regla-notas').value.trim() || null,
+                activo: true,
+            };
+            caja.className = 'msg show wait';
+            caja.textContent = 'Guardando regla…';
+            fetch('/api/reglas-correo', {
+                method: 'POST',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body),
+            })
+                .then(async res => {
+                    const data = await res.json().catch(() => ({}));
+                    if (!res.ok) {
+                        caja.className = 'msg show err';
+                        caja.textContent = data.detail || 'No se pudo guardar';
+                        return;
+                    }
+                    location.reload();
+                })
+                .catch(() => {
+                    caja.className = 'msg show err';
+                    caja.textContent = 'Sin conexión con el tablero.';
+                });
+            return false;
+        }
+
+        function toggleRegla(id, activo) {
+            fetch(`/api/reglas-correo/${id}`, {
+                method: 'PATCH',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ activo }),
+            }).then(res => {
+                if (res.ok) location.reload();
+                else alert('No se pudo actualizar la regla.');
+            });
+        }
+
+        function borrarRegla(id) {
+            if (!confirm('¿Eliminar esta regla?')) return;
+            fetch(`/api/reglas-correo/${id}`, { method: 'DELETE', credentials: 'include' })
+                .then(res => {
+                    if (res.ok) location.reload();
+                    else alert('No se pudo eliminar.');
+                });
+        }
+
+        function sembrarDefaults() {
+            fetch('/api/reglas-correo/sembrar-defaults', { method: 'POST', credentials: 'include' })
+                .then(async res => {
+                    const data = await res.json().catch(() => ({}));
+                    alert(data.mensaje || 'Listo');
+                    if (res.ok) location.reload();
+                })
+                .catch(() => alert('Sin conexión.'));
         }
 
         function subirExcel() {
