@@ -67,6 +67,8 @@ class ActuacionEstado(Base):
     demandante = Column(String)
     demandado = Column(String)
     descripcion_actuacion = Column(Text)                       # Texto publicado en RedJudicial
+    juzgado = Column(String(200), nullable=True)               # Despacho / juzgado RJ
+    ciudad_juzgado = Column(String(150), nullable=True)        # Ciudad del despacho RJ
     
     # Clasificación con Catálogo Redelex
     etapa_ia = Column(String)                                  # Ej: 04. MANDAMIENTO DE PAGO, 08. SENTENCIA
