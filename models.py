@@ -126,3 +126,27 @@ class DemandaNueva(Base):
     estado_robot = Column(String(50), default="PENDIENTE", index=True)  # PENDIENTE, RADICADO, ERROR
     motivo_error = Column(Text, nullable=True)
     fecha_creacion = Column(DateTime, default=datetime.datetime.utcnow)
+
+
+class ReglaCorreo(Base):
+    """
+    Reglas operativas del Cartero (editables desde el Dashboard).
+    El robot las descarga al iniciar cada ciclo.
+    """
+    __tablename__ = "reglas_correo"
+
+    id = Column(Integer, primary_key=True, index=True)
+    nombre = Column(String(120), nullable=False, default="Regla")
+    # CORREO | DOMINIO | ASUNTO
+    tipo_match = Column(String(20), nullable=False, index=True)
+    # email completo, dominio (@ejemplo.com o ejemplo.com) o texto de asunto
+    patron = Column(String(300), nullable=False)
+    # IGNORAR | ALERTA_MANUAL | BUSCAR_RADICADO
+    accion = Column(String(30), nullable=False, index=True)
+    # Destino opcional (ALERTA_MANUAL / BUSCAR_RADICADO): email o "TODOS"
+    asignado_a = Column(String(200), nullable=True)
+    prioridad = Column(Integer, default=100, index=True)  # menor = se evalúa antes
+    activo = Column(Boolean, default=True, index=True)
+    notas = Column(Text, nullable=True)
+    fecha_creacion = Column(DateTime, default=datetime.datetime.utcnow)
+    fecha_actualizacion = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
