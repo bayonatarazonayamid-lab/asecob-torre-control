@@ -36,22 +36,36 @@ models.Base.metadata.create_all(bind=engine)
 def _asegurar_columnas():
     """Añade columnas nuevas en SQLite/Postgres sin romper datos existentes."""
     insp = inspect(engine)
-    if "demandas_nuevas" not in insp.get_table_names():
-        return
-    columnas = {c["name"] for c in insp.get_columns("demandas_nuevas")}
-    nuevas = {
-        "motivo_error": "TEXT",
-        "radicacion": "VARCHAR(50)",
-        "referencia": "TEXT",
-        "clase_proceso": "VARCHAR(100)",
-        "tipo_juzgado": "VARCHAR(150)",
-        "numero_juzgado": "VARCHAR(4)",
-        "ciudad_juzgado": "VARCHAR(150)",
-    }
-    with engine.begin() as conn:
-        for nombre, tipo in nuevas.items():
-            if nombre not in columnas:
-                conn.execute(text(f"ALTER TABLE demandas_nuevas ADD COLUMN {nombre} {tipo}"))
+    tablas = set(insp.get_table_names())
+
+    if "demandas_nuevas" in tablas:
+        columnas = {c["name"] for c in insp.get_columns("demandas_nuevas")}
+        nuevas = {
+            "motivo_error": "TEXT",
+            "radicacion": "VARCHAR(50)",
+            "referencia": "TEXT",
+            "clase_proceso": "VARCHAR(100)",
+            "tipo_juzgado": "VARCHAR(150)",
+            "numero_juzgado": "VARCHAR(4)",
+            "ciudad_juzgado": "VARCHAR(150)",
+        }
+        with engine.begin() as conn:
+            for nombre, tipo in nuevas.items():
+                if nombre not in columnas:
+                    conn.execute(text(f"ALTER TABLE demandas_nuevas ADD COLUMN {nombre} {tipo}"))
+
+    if "actuaciones_estados" in tablas:
+        columnas_ae = {c["name"] for c in insp.get_columns("actuaciones_estados")}
+        nuevas_ae = {
+            "juzgado": "VARCHAR(200)",
+            "ciudad_juzgado": "VARCHAR(150)",
+        }
+        with engine.begin() as conn:
+            for nombre, tipo in nuevas_ae.items():
+                if nombre not in columnas_ae:
+                    conn.execute(
+                        text(f"ALTER TABLE actuaciones_estados ADD COLUMN {nombre} {tipo}")
+                    )
 
 
 _asegurar_columnas()
@@ -308,6 +322,8 @@ def registrar_estado_redjudicial(estado: schemas.ActuacionEstadoCreate, db: Sess
             existente.demandante = estado.demandante.strip()
             existente.demandado = estado.demandado.strip()
             existente.descripcion_actuacion = estado.descripcion_actuacion
+            existente.juzgado = (estado.juzgado or "").strip() or existente.juzgado
+            existente.ciudad_juzgado = (estado.ciudad_juzgado or "").strip() or existente.ciudad_juzgado
             existente.etapa_ia = estado.etapa_ia
             existente.actuacion_ia = estado.actuacion_ia
             existente.resumen_ia = estado.resumen_ia
@@ -328,6 +344,8 @@ def registrar_estado_redjudicial(estado: schemas.ActuacionEstadoCreate, db: Sess
         demandante=estado.demandante.strip(),
         demandado=estado.demandado.strip(),
         descripcion_actuacion=estado.descripcion_actuacion,
+        juzgado=(estado.juzgado or "").strip() or None,
+        ciudad_juzgado=(estado.ciudad_juzgado or "").strip() or None,
         etapa_ia=estado.etapa_ia,
         actuacion_ia=estado.actuacion_ia,
         resumen_ia=estado.resumen_ia,
