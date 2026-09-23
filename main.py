@@ -27,6 +27,7 @@ from auth import (
 from config import getenv
 from crear_plantilla import generar_plantilla_bytes
 from database import SessionLocal, engine
+from reglas_correo_motor import ACCIONES, TIPOS_MATCH, REGLAS_DEFAULT, validar_regla
 from sqlalchemy import inspect, text
 
 models.Base.metadata.create_all(bind=engine)
@@ -54,6 +55,34 @@ def _asegurar_columnas():
 
 
 _asegurar_columnas()
+
+
+def _sembrar_reglas_si_vacio():
+    """Primera arrancada: carga reglas base del Cartero."""
+    db = SessionLocal()
+    try:
+        if db.query(models.ReglaCorreo).count() == 0:
+            for item in REGLAS_DEFAULT:
+                db.add(
+                    models.ReglaCorreo(
+                        nombre=item["nombre"],
+                        tipo_match=item["tipo_match"],
+                        patron=item["patron"],
+                        accion=item["accion"],
+                        asignado_a=item.get("asignado_a"),
+                        prioridad=item.get("prioridad", 100),
+                        activo=True,
+                        notas=item.get("notas"),
+                    )
+                )
+            db.commit()
+    except Exception:
+        db.rollback()
+    finally:
+        db.close()
+
+
+_sembrar_reglas_si_vacio()
 
 app = FastAPI(
     title="Torre de Control - GRUPO ASECOB SAS",
@@ -499,6 +528,140 @@ def actualizar_estado_demanda(
     return {"mensaje": f"Demanda {demanda_id} actualizada a {estado_robot}"}
 
 
+# ==========================================
+# REGLAS DE CORREO (Cartero configurable)
+# ==========================================
+@app.get("/api/reglas-correo", response_model=List[schemas.ReglaCorreoResponse], dependencies=[ApiAuth])
+def listar_reglas_correo(
+    solo_activas: bool = False,
+    db: Session = Depends(get_db),
+):
+    q = db.query(models.ReglaCorreo)
+    if solo_activas:
+        q = q.filter(models.ReglaCorreo.activo.is_(True))
+    return q.order_by(models.ReglaCorreo.prioridad.asc(), models.ReglaCorreo.id.asc()).all()
+
+
+@app.get(
+    "/api/reglas-correo/activas",
+    response_model=List[schemas.ReglaCorreoResponse],
+    dependencies=[ApiAuth],
+)
+def listar_reglas_correo_activas(db: Session = Depends(get_db)):
+    """Endpoint corto para el Cartero al inicio de cada ciclo."""
+    return (
+        db.query(models.ReglaCorreo)
+        .filter(models.ReglaCorreo.activo.is_(True))
+        .order_by(models.ReglaCorreo.prioridad.asc(), models.ReglaCorreo.id.asc())
+        .all()
+    )
+
+
+@app.get("/api/reglas-correo/meta", dependencies=[ApiAuth])
+def meta_reglas_correo():
+    return {
+        "tipos_match": list(TIPOS_MATCH),
+        "acciones": list(ACCIONES),
+        "ayuda": {
+            "CORREO": "Coincide con el email exacto del remitente (ej. contabilidad@empresa.com)",
+            "DOMINIO": "Coincide con el dominio del From (ej. cendoj.ramajudicial.gov.co)",
+            "ASUNTO": "Si el asunto contiene ese texto (sin importar tildes)",
+            "IGNORAR": "Marca leído y no reenvía",
+            "ALERTA_MANUAL": "Avisa al equipo (o a asignado_a) sin buscar radicado",
+            "BUSCAR_RADICADO": "Procesa como providencia: busca radicado y reenvía",
+        },
+    }
+
+
+@app.post("/api/reglas-correo", response_model=schemas.ReglaCorreoResponse, dependencies=[ApiAuth])
+def crear_regla_correo(regla: schemas.ReglaCorreoCreate, db: Session = Depends(get_db)):
+    err = validar_regla(regla.tipo_match, regla.accion, regla.patron)
+    if err:
+        raise HTTPException(status_code=400, detail=err)
+    nueva = models.ReglaCorreo(
+        nombre=(regla.nombre or "Regla").strip()[:120],
+        tipo_match=regla.tipo_match.strip().upper(),
+        patron=regla.patron.strip(),
+        accion=regla.accion.strip().upper(),
+        asignado_a=(regla.asignado_a or None),
+        prioridad=int(regla.prioridad or 100),
+        activo=bool(regla.activo),
+        notas=regla.notas,
+    )
+    db.add(nueva)
+    db.commit()
+    db.refresh(nueva)
+    return nueva
+
+
+@app.patch("/api/reglas-correo/{regla_id}", response_model=schemas.ReglaCorreoResponse, dependencies=[ApiAuth])
+def actualizar_regla_correo(
+    regla_id: int,
+    cambios: schemas.ReglaCorreoUpdate,
+    db: Session = Depends(get_db),
+):
+    regla = db.query(models.ReglaCorreo).filter(models.ReglaCorreo.id == regla_id).first()
+    if not regla:
+        raise HTTPException(status_code=404, detail="Regla no encontrada")
+    data = cambios.model_dump(exclude_unset=True)
+    tipo = data.get("tipo_match", regla.tipo_match)
+    accion = data.get("accion", regla.accion)
+    patron = data.get("patron", regla.patron)
+    err = validar_regla(str(tipo), str(accion), str(patron))
+    if err:
+        raise HTTPException(status_code=400, detail=err)
+    for campo, valor in data.items():
+        if campo in ("tipo_match", "accion") and isinstance(valor, str):
+            valor = valor.strip().upper()
+        if campo == "patron" and isinstance(valor, str):
+            valor = valor.strip()
+        if campo == "nombre" and isinstance(valor, str):
+            valor = valor.strip()[:120]
+        setattr(regla, campo, valor)
+    db.commit()
+    db.refresh(regla)
+    return regla
+
+
+@app.delete("/api/reglas-correo/{regla_id}", dependencies=[ApiAuth])
+def eliminar_regla_correo(regla_id: int, db: Session = Depends(get_db)):
+    regla = db.query(models.ReglaCorreo).filter(models.ReglaCorreo.id == regla_id).first()
+    if not regla:
+        raise HTTPException(status_code=404, detail="Regla no encontrada")
+    db.delete(regla)
+    db.commit()
+    return {"mensaje": f"Regla {regla_id} eliminada"}
+
+
+@app.post("/api/reglas-correo/sembrar-defaults", dependencies=[ApiAuth])
+def sembrar_reglas_correo_defaults(db: Session = Depends(get_db)):
+    """Inserta reglas base solo si la tabla está vacía (primera vez)."""
+    existentes = db.query(models.ReglaCorreo).count()
+    if existentes > 0:
+        return {
+            "mensaje": "Ya hay reglas; no se sembraron defaults.",
+            "total": existentes,
+            "creadas": 0,
+        }
+    creadas = 0
+    for item in REGLAS_DEFAULT:
+        db.add(
+            models.ReglaCorreo(
+                nombre=item["nombre"],
+                tipo_match=item["tipo_match"],
+                patron=item["patron"],
+                accion=item["accion"],
+                asignado_a=item.get("asignado_a"),
+                prioridad=item.get("prioridad", 100),
+                activo=True,
+                notas=item.get("notas"),
+            )
+        )
+        creadas += 1
+    db.commit()
+    return {"mensaje": "Reglas por defecto creadas", "creadas": creadas, "total": creadas}
+
+
 @app.get("/dashboard", response_class=HTMLResponse)
 def ver_dashboard(request: Request, db: Session = Depends(get_db)):
     if DASHBOARD_PASSWORD and not acceso_dashboard_ok(request):
@@ -541,6 +704,11 @@ def ver_dashboard(request: Request, db: Session = Depends(get_db)):
         .order_by(models.DemandaNueva.id.desc())
         .all()
     )
+    reglas_correo = (
+        db.query(models.ReglaCorreo)
+        .order_by(models.ReglaCorreo.prioridad.asc(), models.ReglaCorreo.id.asc())
+        .all()
+    )
     return templates.TemplateResponse(
         request=request,
         name="dashboard.html",
@@ -549,5 +717,6 @@ def ver_dashboard(request: Request, db: Session = Depends(get_db)):
             "estados": estados_vigia,
             "autos_no_disponibles": autos_no_disponibles,
             "demandas": demandas_radicar,
+            "reglas_correo": reglas_correo,
         },
     )
