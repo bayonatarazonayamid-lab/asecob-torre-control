@@ -109,6 +109,8 @@
             animation: rise 0.55s ease-out 0.08s both;
         }
         @media (max-width: 640px) { .stats { grid-template-columns: 1fr; } }
+        @media (min-width: 641px) and (max-width: 900px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+        @media (min-width: 901px) { .stats { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
         .stat {
             background: var(--panel);
             border: 1px solid var(--line);
@@ -245,12 +247,14 @@
         <div class="stats">
             <div class="stat"><b>{{ notificaciones|length }}</b><span>En el buzón</span></div>
             <div class="stat"><b>{{ estados|length }}</b><span>Actuaciones por registrar</span></div>
+            <div class="stat"><b>{{ autos_no_disponibles|length }}</b><span>Autos no disponibles</span></div>
             <div class="stat"><b>{{ demandas|length }}</b><span>Demandas en cola</span></div>
         </div>
 
         <nav class="tabs" role="tablist">
             <button type="button" class="active" id="btn-tab-buzon" onclick="cambiarTab('tab-buzon')">Buzón ({{ notificaciones|length }})</button>
             <button type="button" id="btn-tab-estados" onclick="cambiarTab('tab-estados')">Actuaciones ({{ estados|length }})</button>
+            <button type="button" id="btn-tab-seguimiento" onclick="cambiarTab('tab-seguimiento')">Seguimiento ({{ autos_no_disponibles|length }})</button>
             <button type="button" id="btn-tab-demandas" onclick="cambiarTab('tab-demandas')">Demandas ({{ demandas|length }})</button>
         </nav>
 
@@ -344,6 +348,46 @@
             </div>
         </section>
 
+        <section id="tab-seguimiento" class="panel hidden">
+            <div class="toolbar">
+                <div>
+                    <h2>Autos no disponibles — seguimiento manual</h2>
+                    <p>El PDF de RedJudicial era una nota administrativa (auto no publicado en micrositios). Solicite el auto al despacho y, cuando lo gestione, márquelo como tramitado.</p>
+                </div>
+                <button type="button" class="btn btn-ghost" onclick="location.reload()">Actualizar</button>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Radicado</th>
+                            <th>Fecha</th>
+                            <th>Partes</th>
+                            <th>Aviso</th>
+                            <th>Estado</th>
+                            <th>Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for e in autos_no_disponibles %}
+                        <tr style="font-size:0.82rem;">
+                            <td class="mono">{{ e.id }}</td>
+                            <td class="mono" style="white-space:nowrap;">{{ e.radicado }}</td>
+                            <td style="white-space:nowrap;">{{ e.fecha_notificacion }}</td>
+                            <td class="truncate" title="{{ e.demandante }} vs {{ e.demandado }}">{{ e.demandante }} vs {{ e.demandado }}</td>
+                            <td style="max-width:20rem;white-space:normal;">{{ e.motivo_falla or e.resumen_ia }}</td>
+                            <td><span class="chip chip-amber">Seguimiento</span></td>
+                            <td><button type="button" class="btn btn-asecob" onclick="marcarSeguimiento({{ e.id }})">Tramitado</button></td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="7"><div class="empty"><strong>Nada pendiente de seguimiento</strong>Cuando un auto no esté en micrositios de Rama Judicial, aparecerá aquí para gestión manual.</div></td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
         <section id="tab-demandas" class="panel hidden">
             <div class="demandas-box">
                 <div>
@@ -397,7 +441,7 @@
 
     <script>
         function cambiarTab(tabId) {
-            ['tab-buzon', 'tab-estados', 'tab-demandas'].forEach(id => {
+            ['tab-buzon', 'tab-estados', 'tab-seguimiento', 'tab-demandas'].forEach(id => {
                 document.getElementById(id).classList.add('hidden');
                 document.getElementById('btn-' + id).classList.remove('active');
             });
@@ -410,6 +454,15 @@
                 .then(res => {
                     if (res.ok) location.reload();
                     else alert('No se pudo marcar como tramitado. Vuelva a entrar con la clave del equipo.');
+                })
+                .catch(() => alert('Sin conexión con el tablero. Intente de nuevo.'));
+        }
+
+        function marcarSeguimiento(id) {
+            fetch(`/api/estados/${id}/completar-seguimiento`, { method: 'PATCH', credentials: 'include' })
+                .then(res => {
+                    if (res.ok) location.reload();
+                    else alert('No se pudo cerrar el seguimiento. Vuelva a entrar con la clave del equipo.');
                 })
                 .catch(() => alert('Sin conexión con el tablero. Intente de nuevo.'));
         }
