@@ -109,3 +109,45 @@ class DemandaNuevaResponse(DemandaNuevaCreate):
 
   class Config:
     from_attributes = True
+
+
+# ==========================================
+# ESQUEMAS: REGLAS DE CORREO (Cartero)
+# ==========================================
+class ReglaCorreoCreate(BaseModel):
+  nombre: str = "Regla"
+  tipo_match: str  # CORREO | DOMINIO | ASUNTO
+  patron: str
+  accion: str  # IGNORAR | ALERTA_MANUAL | BUSCAR_RADICADO
+  asignado_a: Optional[str] = None
+  prioridad: int = 100
+  activo: bool = True
+  notas: Optional[str] = None
+
+
+class ReglaCorreoUpdate(BaseModel):
+  nombre: Optional[str] = None
+  tipo_match: Optional[str] = None
+  patron: Optional[str] = None
+  accion: Optional[str] = None
+  asignado_a: Optional[str] = None
+  prioridad: Optional[int] = None
+  activo: Optional[bool] = None
+  notas: Optional[str] = None
+
+
+class ReglaCorreoResponse(BaseModel):
+  id: int
+  nombre: str
+  tipo_match: str
+  patron: str
+  accion: str
+  asignado_a: Optional[str] = None
+  prioridad: int
+  activo: bool
+  notas: Optional[str] = None
+  fecha_creacion: datetime
+  fecha_actualizacion: Optional[datetime] = None
+
+  class Config:
+    from_attributes = True
