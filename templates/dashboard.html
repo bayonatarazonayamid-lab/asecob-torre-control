@@ -181,6 +181,12 @@
         tr:hover td { background: rgba(24,74,147,0.04); }
         .mono { font-variant-numeric: tabular-nums; font-family: ui-monospace, monospace; font-weight: 700; }
         .truncate { max-width: 16rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .partes-full {
+            max-width: 22rem;
+            white-space: normal;
+            word-break: break-word;
+            line-height: 1.35;
+        }
         .chip {
             display: inline-block; font-size: 0.72rem; font-weight: 700;
             padding: 0.2rem 0.5rem; border-radius: 999px; border: 1px solid transparent;
@@ -324,9 +330,11 @@
                             <th>Radicado</th>
                             <th>Fecha</th>
                             <th>Partes</th>
+                            <th>Juzgado</th>
+                            <th>Ciudad</th>
+                            <th>Descripción actuación (RJ)</th>
                             <th>Etapa</th>
                             <th>Actuación</th>
-                            <th>Resumen</th>
                             <th>Estado</th>
                         </tr>
                     </thead>
@@ -335,14 +343,16 @@
                         <tr style="font-size:0.82rem;">
                             <td class="mono" style="white-space:nowrap;">{{ e.radicado }}</td>
                             <td style="white-space:nowrap;">{{ e.fecha_notificacion }}</td>
-                            <td class="truncate">{{ e.demandante }} vs {{ e.demandado }}</td>
+                            <td class="partes-full">{{ e.demandante }} vs {{ e.demandado }}</td>
+                            <td style="max-width:12rem;white-space:normal;">{{ e.juzgado or '—' }}</td>
+                            <td>{{ e.ciudad_juzgado or '—' }}</td>
+                            <td style="max-width:18rem;white-space:normal;">{{ e.descripcion_actuacion or '—' }}</td>
                             <td><strong>{{ e.etapa_ia }}</strong></td>
                             <td><strong>{{ e.actuacion_ia }}</strong></td>
-                            <td style="max-width:18rem;white-space:normal;">{{ e.resumen_ia }}</td>
                             <td><span class="chip chip-amber">{{ e.estado_inyeccion }}</span></td>
                         </tr>
                         {% else %}
-                        <tr><td colspan="7"><div class="empty"><strong>Sin actuaciones pendientes</strong>Cuando la vigilancia de la oficina envíe novedades, las verá en esta lista.</div></td></tr>
+                        <tr><td colspan="9"><div class="empty"><strong>Sin actuaciones pendientes</strong>Cuando la vigilancia de la oficina envíe novedades, las verá en esta lista.</div></td></tr>
                         {% endfor %}
                     </tbody>
                 </table>
@@ -365,6 +375,9 @@
                             <th>Radicado</th>
                             <th>Fecha</th>
                             <th>Partes</th>
+                            <th>Juzgado</th>
+                            <th>Ciudad</th>
+                            <th>Descripción actuación (RJ)</th>
                             <th>Aviso</th>
                             <th>Estado</th>
                             <th>Acción</th>
@@ -376,13 +389,16 @@
                             <td class="mono">{{ e.id }}</td>
                             <td class="mono" style="white-space:nowrap;">{{ e.radicado }}</td>
                             <td style="white-space:nowrap;">{{ e.fecha_notificacion }}</td>
-                            <td class="truncate" title="{{ e.demandante }} vs {{ e.demandado }}">{{ e.demandante }} vs {{ e.demandado }}</td>
-                            <td style="max-width:20rem;white-space:normal;">{{ e.motivo_falla or e.resumen_ia }}</td>
+                            <td class="partes-full">{{ e.demandante }} vs {{ e.demandado }}</td>
+                            <td style="max-width:12rem;white-space:normal;">{{ e.juzgado or '—' }}</td>
+                            <td>{{ e.ciudad_juzgado or '—' }}</td>
+                            <td style="max-width:18rem;white-space:normal;">{{ e.descripcion_actuacion or '—' }}</td>
+                            <td style="max-width:14rem;white-space:normal;">{{ e.motivo_falla or e.resumen_ia }}</td>
                             <td><span class="chip chip-amber">Seguimiento</span></td>
                             <td><button type="button" class="btn btn-asecob" onclick="marcarSeguimiento({{ e.id }})">Tramitado</button></td>
                         </tr>
                         {% else %}
-                        <tr><td colspan="7"><div class="empty"><strong>Nada pendiente de seguimiento</strong>Cuando un auto no esté en micrositios de Rama Judicial, aparecerá aquí para gestión manual.</div></td></tr>
+                        <tr><td colspan="10"><div class="empty"><strong>Nada pendiente de seguimiento</strong>Cuando un auto no esté en micrositios de Rama Judicial, aparecerá aquí para gestión manual.</div></td></tr>
                         {% endfor %}
                     </tbody>
                 </table>
