@@ -453,8 +453,8 @@
         <section id="tab-reglas" class="panel hidden">
             <div class="toolbar">
                 <div>
-                    <h2>Reglas del correo (Cartero)</h2>
-                    <p>Defina qué hacer con cada remitente, dominio o asunto. El robot las descarga al iniciar el ciclo Correo. Menor prioridad = se evalúa primero.</p>
+                    <h2>Reglas del correo</h2>
+                    <p>En 3 pasos: <strong>cuándo</strong> aplica → <strong>qué hacer</strong> → <strong>a quién</strong> (si aplica). El Cartero las descarga en cada ciclo.</p>
                 </div>
                 <button type="button" class="btn btn-ghost" onclick="location.reload()">Actualizar</button>
             </div>
@@ -462,26 +462,61 @@
             <div class="demandas-box" style="margin-bottom:1rem;">
                 <div>
                     <h2 style="font-size:1rem;">Nueva regla</h2>
-                    <p>Ejemplos: ignorar <em>facturacion@cliente.com</em>, dominio <em>mailer-daemon</em>, o forzar buscar radicado en otro dominio judicial.</p>
+                    <p>Ejemplo: correo <em>cliente@empresa.com</em> → «Enviar siempre a este abogado» → Jurídico 2.</p>
                 </div>
-                <form id="form-regla" onsubmit="return crearRegla(event)" style="display:grid;gap:0.55rem;width:100%;max-width:36rem;">
-                    <input type="text" id="regla-nombre" placeholder="Nombre (ej. Contabilidad X)" required style="padding:0.5rem;border:1px solid var(--line);border-radius:0.5rem;">
-                    <div style="display:flex;flex-wrap:wrap;gap:0.5rem;">
-                        <select id="regla-tipo" style="padding:0.5rem;border-radius:0.5rem;border:1px solid var(--line);">
-                            <option value="CORREO">Correo exacto</option>
-                            <option value="DOMINIO">Dominio</option>
-                            <option value="ASUNTO">Asunto contiene</option>
-                        </select>
-                        <select id="regla-accion" style="padding:0.5rem;border-radius:0.5rem;border:1px solid var(--line);">
-                            <option value="IGNORAR">Ignorar (no reenviar)</option>
-                            <option value="ALERTA_MANUAL">Alerta manual</option>
-                            <option value="BUSCAR_RADICADO">Buscar radicado / procesar</option>
-                        </select>
-                        <input type="number" id="regla-prio" value="100" min="1" max="999" title="Prioridad" style="width:5rem;padding:0.5rem;border-radius:0.5rem;border:1px solid var(--line);">
+                <form id="form-regla" onsubmit="return crearRegla(event)" style="display:grid;gap:0.75rem;width:100%;max-width:40rem;">
+                    <label style="font-size:0.8rem;color:var(--muted);">1. Nombre de la regla
+                        <input type="text" id="regla-nombre" placeholder="Ej. Correos de Contabilidad X" required style="display:block;width:100%;margin-top:0.25rem;padding:0.55rem;border:1px solid var(--line);border-radius:0.5rem;">
+                    </label>
+
+                    <div>
+                        <div style="font-size:0.8rem;color:var(--muted);margin-bottom:0.25rem;">2. ¿Cuándo aplica?</div>
+                        <div style="display:flex;flex-wrap:wrap;gap:0.5rem;">
+                            <select id="regla-tipo" style="padding:0.55rem;border-radius:0.5rem;border:1px solid var(--line);min-width:12rem;">
+                                <option value="CORREO">Remitente = este correo</option>
+                                <option value="DOMINIO">Remitente de este dominio</option>
+                                <option value="ASUNTO">Asunto contiene…</option>
+                            </select>
+                            <input type="text" id="regla-patron" placeholder="email@empresa.com  ·  dominio.com  ·  texto asunto" required style="flex:1;min-width:14rem;padding:0.55rem;border:1px solid var(--line);border-radius:0.5rem;">
+                        </div>
                     </div>
-                    <input type="text" id="regla-patron" placeholder="Patrón: email, dominio o texto de asunto" required style="padding:0.5rem;border:1px solid var(--line);border-radius:0.5rem;">
-                    <input type="text" id="regla-asignado" placeholder="Asignado (opcional: email o TODOS)" style="padding:0.5rem;border:1px solid var(--line);border-radius:0.5rem;">
-                    <input type="text" id="regla-notas" placeholder="Notas (opcional)" style="padding:0.5rem;border:1px solid var(--line);border-radius:0.5rem;">
+
+                    <div>
+                        <div style="font-size:0.8rem;color:var(--muted);margin-bottom:0.25rem;">3. ¿Qué hacer?</div>
+                        <select id="regla-accion" onchange="toggleAbogadoRegla()" style="width:100%;max-width:28rem;padding:0.55rem;border-radius:0.5rem;border:1px solid var(--line);">
+                            <option value="IGNORAR">Ignorar (no reenviar)</option>
+                            <option value="ALERTA_MANUAL">Avisar para revisión manual</option>
+                            <option value="BUSCAR_RADICADO">Procesar como providencia</option>
+                            <option value="ASIGNAR_A">Enviar siempre a este abogado</option>
+                        </select>
+                    </div>
+
+                    <div id="bloque-abogado" style="display:none;">
+                        <div style="font-size:0.8rem;color:var(--muted);margin-bottom:0.25rem;">4. ¿A qué abogado?</div>
+                        <select id="regla-asignado" style="width:100%;max-width:28rem;padding:0.55rem;border-radius:0.5rem;border:1px solid var(--line);">
+                            <option value="">— Elija abogado —</option>
+                            <option value="juridico@asecobsas.com">Jurídico 1 — juridico@asecobsas.com</option>
+                            <option value="juridico2@asecobsas.com">Jurídico 2 — juridico2@asecobsas.com</option>
+                            <option value="juridico3@asecobsas.com">Jurídico 3 — juridico3@asecobsas.com</option>
+                            <option value="coordinacionjuridica@asecobsas.com">Coordinación jurídica</option>
+                            <option value="coordinacion@asecobsas.com">Coordinación</option>
+                            <option value="TODOS">Todos los abogados</option>
+                        </select>
+                        <p style="font-size:0.75rem;color:var(--muted);margin:0.35rem 0 0;">Obligatorio si eligió «Enviar siempre a este abogado». Opcional en alerta o providencia.</p>
+                    </div>
+
+                    <details>
+                        <summary style="cursor:pointer;font-size:0.85rem;color:var(--muted);">Opciones avanzadas</summary>
+                        <div style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-top:0.5rem;">
+                            <label style="font-size:0.8rem;">Prioridad
+                                <input type="number" id="regla-prio" value="100" min="1" max="999" title="Menor = se evalúa primero" style="display:block;width:5rem;padding:0.45rem;border-radius:0.5rem;border:1px solid var(--line);">
+                            </label>
+                            <label style="font-size:0.8rem;flex:1;">Notas
+                                <input type="text" id="regla-notas" placeholder="Opcional" style="display:block;width:100%;padding:0.45rem;border:1px solid var(--line);border-radius:0.5rem;">
+                            </label>
+                        </div>
+                    </details>
+
                     <div class="actions" style="justify-content:flex-start;">
                         <button type="submit" class="btn btn-asecob">Guardar regla</button>
                         <button type="button" class="btn btn-ink" onclick="sembrarDefaults()">Cargar reglas base</button>
@@ -496,10 +531,10 @@
                         <tr>
                             <th>Pri.</th>
                             <th>Nombre</th>
-                            <th>Tipo</th>
+                            <th>Cuándo</th>
                             <th>Patrón</th>
-                            <th>Acción</th>
-                            <th>Asignado</th>
+                            <th>Qué hace</th>
+                            <th>Abogado</th>
                             <th>Activa</th>
                             <th></th>
                         </tr>
@@ -513,11 +548,13 @@
                             <td class="mono truncate" title="{{ r.patron }}">{{ r.patron }}</td>
                             <td>
                                 {% if r.accion == 'IGNORAR' %}
-                                    <span class="chip chip-amber">IGNORAR</span>
+                                    <span class="chip chip-amber">Ignorar</span>
                                 {% elif r.accion == 'ALERTA_MANUAL' %}
-                                    <span class="chip chip-red">ALERTA</span>
+                                    <span class="chip chip-red">Avisar</span>
+                                {% elif r.accion == 'ASIGNAR_A' %}
+                                    <span class="chip chip-blue">Enviar a abogado</span>
                                 {% else %}
-                                    <span class="chip chip-blue">BUSCAR RADICADO</span>
+                                    <span class="chip chip-blue">Providencia</span>
                                 {% endif %}
                             </td>
                             <td style="font-size:0.78rem;">{{ r.asignado_a or '—' }}</td>
@@ -529,7 +566,7 @@
                             <td><button type="button" class="btn btn-ghost" onclick="borrarRegla({{ r.id }})">Eliminar</button></td>
                         </tr>
                         {% else %}
-                        <tr><td colspan="8"><div class="empty"><strong>Sin reglas aún</strong>Pulse «Cargar reglas base» o cree la primera regla arriba. Hasta entonces el Cartero usa exclusiones locales de respaldo.</div></td></tr>
+                        <tr><td colspan="8"><div class="empty"><strong>Sin reglas aún</strong>Pulse «Cargar reglas base» o cree la primera arriba.</div></td></tr>
                         {% endfor %}
                     </tbody>
                 </table>
@@ -570,16 +607,36 @@
                 .catch(() => alert('Sin conexión con el tablero. Intente de nuevo.'));
         }
 
+        function toggleAbogadoRegla() {
+            const accion = document.getElementById('regla-accion').value;
+            const bloque = document.getElementById('bloque-abogado');
+            const necesita = (accion === 'ASIGNAR_A' || accion === 'ALERTA_MANUAL' || accion === 'BUSCAR_RADICADO');
+            bloque.style.display = necesita ? 'block' : 'none';
+            const sel = document.getElementById('regla-asignado');
+            if (accion === 'ASIGNAR_A') sel.required = true;
+            else { sel.required = false; }
+        }
+
         function crearRegla(ev) {
             ev.preventDefault();
             const caja = document.getElementById('mensaje-regla');
+            const accion = document.getElementById('regla-accion').value;
+            const asignado = document.getElementById('regla-asignado').value.trim() || null;
+            if (accion === 'ASIGNAR_A' && (!asignado || asignado === 'TODOS' && false)) {
+                // TODOS permitido solo si quieren; ASIGNAR_A requiere email concreto
+            }
+            if (accion === 'ASIGNAR_A' && (!asignado || !asignado.includes('@'))) {
+                caja.className = 'msg show err';
+                caja.textContent = 'Elija el abogado al que se enviarán esos correos.';
+                return false;
+            }
             const body = {
                 nombre: document.getElementById('regla-nombre').value.trim(),
                 tipo_match: document.getElementById('regla-tipo').value,
-                accion: document.getElementById('regla-accion').value,
+                accion: accion,
                 patron: document.getElementById('regla-patron').value.trim(),
                 prioridad: parseInt(document.getElementById('regla-prio').value, 10) || 100,
-                asignado_a: document.getElementById('regla-asignado').value.trim() || null,
+                asignado_a: asignado,
                 notas: document.getElementById('regla-notas').value.trim() || null,
                 activo: true,
             };
@@ -595,7 +652,7 @@
                     const data = await res.json().catch(() => ({}));
                     if (!res.ok) {
                         caja.className = 'msg show err';
-                        caja.textContent = data.detail || 'No se pudo guardar';
+                        caja.textContent = (typeof data.detail === 'string' ? data.detail : 'No se pudo guardar');
                         return;
                     }
                     location.reload();
