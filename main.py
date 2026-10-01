@@ -27,20 +27,64 @@ from auth import (
 from config import getenv
 from crear_plantilla import generar_plantilla_bytes
 from database import SessionLocal, engine
-from reglas_correo_motor import ACCIONES, TIPOS_MATCH, REGLAS_DEFAULT, validar_regla
+from reglas_correo_motor import (
+    ACCIONES,
+    ACCIONES_LABEL,
+    ABOGADOS_DESTINO,
+    TIPOS_MATCH,
+    TIPOS_LABEL,
+    REGLAS_DEFAULT,
+    validar_regla,
+)
 from sqlalchemy import inspect, text
 
+# Crea tablas faltantes (p. ej. reglas_correo) sin tocar datos existentes.
 models.Base.metadata.create_all(bind=engine)
 
 
 def _asegurar_columnas():
-    """Añade columnas nuevas en SQLite/Postgres sin romper datos existentes."""
+    """
+    Añade columnas/tablas nuevas en SQLite/Postgres sin borrar ni truncar datos.
+
+    create_all solo crea tablas ausentes; no altera columnas de tablas ya existentes.
+    Por eso aquí hacemos ALTER TABLE ... ADD COLUMN de forma idempotente.
+    """
+    # Postgres: IF NOT EXISTS (idempotente / carreras al arrancar).
+    # SQLite: solo inspect + ADD (IF NOT EXISTS exige SQLite >= 3.35).
+    dialect = (engine.dialect.name or "").lower()
+    usa_if_not_exists = dialect in ("postgresql", "postgres")
+
     insp = inspect(engine)
     tablas = set(insp.get_table_names())
 
-    if "demandas_nuevas" in tablas:
-        columnas = {c["name"] for c in insp.get_columns("demandas_nuevas")}
-        nuevas = {
+    # Tabla añadida después del esquema inicial: forzar create si create_all no la vio.
+    if "reglas_correo" not in tablas:
+        models.ReglaCorreo.__table__.create(bind=engine, checkfirst=True)
+        print("[BD] Tabla reglas_correo creada.")
+        insp = inspect(engine)
+        tablas = set(insp.get_table_names())
+
+    def _add_columns(tabla: str, nuevas: dict) -> None:
+        if tabla not in tablas:
+            return
+        columnas = {c["name"] for c in insp.get_columns(tabla)}
+        pendientes = {n: t for n, t in nuevas.items() if n not in columnas}
+        if not pendientes:
+            return
+        with engine.begin() as conn:
+            for nombre, tipo in pendientes.items():
+                if usa_if_not_exists:
+                    sql = (
+                        f"ALTER TABLE {tabla} ADD COLUMN IF NOT EXISTS {nombre} {tipo}"
+                    )
+                else:
+                    sql = f"ALTER TABLE {tabla} ADD COLUMN {nombre} {tipo}"
+                conn.execute(text(sql))
+                print(f"[BD] Columna añadida: {tabla}.{nombre} ({tipo})")
+
+    _add_columns(
+        "demandas_nuevas",
+        {
             "motivo_error": "TEXT",
             "radicacion": "VARCHAR(50)",
             "referencia": "TEXT",
@@ -48,24 +92,15 @@ def _asegurar_columnas():
             "tipo_juzgado": "VARCHAR(150)",
             "numero_juzgado": "VARCHAR(4)",
             "ciudad_juzgado": "VARCHAR(150)",
-        }
-        with engine.begin() as conn:
-            for nombre, tipo in nuevas.items():
-                if nombre not in columnas:
-                    conn.execute(text(f"ALTER TABLE demandas_nuevas ADD COLUMN {nombre} {tipo}"))
-
-    if "actuaciones_estados" in tablas:
-        columnas_ae = {c["name"] for c in insp.get_columns("actuaciones_estados")}
-        nuevas_ae = {
+        },
+    )
+    _add_columns(
+        "actuaciones_estados",
+        {
             "juzgado": "VARCHAR(200)",
             "ciudad_juzgado": "VARCHAR(150)",
-        }
-        with engine.begin() as conn:
-            for nombre, tipo in nuevas_ae.items():
-                if nombre not in columnas_ae:
-                    conn.execute(
-                        text(f"ALTER TABLE actuaciones_estados ADD COLUMN {nombre} {tipo}")
-                    )
+        },
+    )
 
 
 _asegurar_columnas()
@@ -304,6 +339,18 @@ def registrar_estado_redjudicial(estado: schemas.ActuacionEstadoCreate, db: Sess
     rad = estado.radicado.strip()
     fecha = estado.fecha_notificacion
 
+    def _num_etapa(texto: str) -> int:
+        t = (texto or "").strip()
+        if not t or t.upper().startswith("COMODIN"):
+            return -1
+        import re as _re
+
+        m = _re.match(r"^(\d{1,2})\b", t) or _re.search(r"(\d{1,2})\s*\.", t)
+        try:
+            return int(m.group(1)) if m else -1
+        except Exception:
+            return -1
+
     # Autos no disponibles: actualizar si ya hay seguimiento abierto (evita duplicados al re-escanear)
     if estado.estado_inyeccion == "AUTO_NO_DISPONIBLE":
         existente = (
@@ -338,6 +385,36 @@ def registrar_estado_redjudicial(estado: schemas.ActuacionEstadoCreate, db: Sess
                 "actualizado": True,
             }
 
+    estado_final = estado.estado_inyeccion
+    motivo_final = estado.motivo_falla
+
+    # No retroceso: si el radicado ya tuvo una etapa más avanzada (EXITOSO/PENDIENTE),
+    # no devolver el proceso a una etapa anterior en Redelex.
+    if estado_final == "PENDIENTE":
+        nueva_n = _num_etapa(estado.etapa_ia)
+        if nueva_n >= 0:
+            previas = (
+                db.query(models.ActuacionEstado)
+                .filter(
+                    models.ActuacionEstado.radicado == rad,
+                    models.ActuacionEstado.estado_inyeccion.in_(("EXITOSO", "PENDIENTE")),
+                )
+                .all()
+            )
+            max_prev = -1
+            etapa_prev = None
+            for p in previas:
+                n = _num_etapa(p.etapa_ia)
+                if n > max_prev:
+                    max_prev = n
+                    etapa_prev = p.etapa_ia
+            if max_prev >= 0 and nueva_n < max_prev:
+                estado_final = "OMITIDO"
+                motivo_final = (
+                    f"No retroceso: el proceso ya está en '{etapa_prev}' "
+                    f"(orden {max_prev}); se omitió '{estado.etapa_ia}' (orden {nueva_n})."
+                )
+
     nuevo_estado = models.ActuacionEstado(
         fecha_notificacion=fecha,
         radicado=rad,
@@ -351,8 +428,8 @@ def registrar_estado_redjudicial(estado: schemas.ActuacionEstadoCreate, db: Sess
         resumen_ia=estado.resumen_ia,
         ruta_pdf_local=estado.ruta_pdf_local,
         pdf_faltante=estado.pdf_faltante,
-        estado_inyeccion=estado.estado_inyeccion,
-        motivo_falla=estado.motivo_falla,
+        estado_inyeccion=estado_final,
+        motivo_falla=motivo_final,
     )
 
     proceso_existente = (
@@ -364,7 +441,13 @@ def registrar_estado_redjudicial(estado: schemas.ActuacionEstadoCreate, db: Sess
     db.add(nuevo_estado)
     db.commit()
     db.refresh(nuevo_estado)
-    return {"mensaje": "Actuación de RedJudicial registrada", "id": nuevo_estado.id}
+    return {
+        "mensaje": "Actuación de RedJudicial registrada",
+        "id": nuevo_estado.id,
+        "estado_inyeccion": estado_final,
+        "omitido_por_no_retroceso": estado_final == "OMITIDO"
+        and bool(motivo_final and "No retroceso" in str(motivo_final)),
+    }
 
 
 @app.get("/api/estados/pendientes", response_model=List[schemas.ActuacionEstadoResponse], dependencies=[ApiAuth])
@@ -580,20 +663,24 @@ def meta_reglas_correo():
     return {
         "tipos_match": list(TIPOS_MATCH),
         "acciones": list(ACCIONES),
+        "tipos_label": TIPOS_LABEL,
+        "acciones_label": ACCIONES_LABEL,
+        "abogados": ABOGADOS_DESTINO,
         "ayuda": {
-            "CORREO": "Coincide con el email exacto del remitente (ej. contabilidad@empresa.com)",
-            "DOMINIO": "Coincide con el dominio del From (ej. cendoj.ramajudicial.gov.co)",
-            "ASUNTO": "Si el asunto contiene ese texto (sin importar tildes)",
-            "IGNORAR": "Marca leído y no reenvía",
-            "ALERTA_MANUAL": "Avisa al equipo (o a asignado_a) sin buscar radicado",
-            "BUSCAR_RADICADO": "Procesa como providencia: busca radicado y reenvía",
+            "CORREO": "Si el remitente es exactamente este email",
+            "DOMINIO": "Si el remitente es de este dominio (ej. juzgado.gov.co)",
+            "ASUNTO": "Si el asunto contiene ese texto",
+            "IGNORAR": "No reenvía ni procesa",
+            "ALERTA_MANUAL": "Avisa al abogado (o a todos) para revisión manual",
+            "BUSCAR_RADICADO": "Procesa como providencia (busca radicado y reenvía)",
+            "ASIGNAR_A": "Ese correo siempre se envía al abogado que elija",
         },
     }
 
 
 @app.post("/api/reglas-correo", response_model=schemas.ReglaCorreoResponse, dependencies=[ApiAuth])
 def crear_regla_correo(regla: schemas.ReglaCorreoCreate, db: Session = Depends(get_db)):
-    err = validar_regla(regla.tipo_match, regla.accion, regla.patron)
+    err = validar_regla(regla.tipo_match, regla.accion, regla.patron, regla.asignado_a)
     if err:
         raise HTTPException(status_code=400, detail=err)
     nueva = models.ReglaCorreo(
@@ -625,7 +712,8 @@ def actualizar_regla_correo(
     tipo = data.get("tipo_match", regla.tipo_match)
     accion = data.get("accion", regla.accion)
     patron = data.get("patron", regla.patron)
-    err = validar_regla(str(tipo), str(accion), str(patron))
+    asignado = data.get("asignado_a", regla.asignado_a)
+    err = validar_regla(str(tipo), str(accion), str(patron), asignado)
     if err:
         raise HTTPException(status_code=400, detail=err)
     for campo, valor in data.items():
