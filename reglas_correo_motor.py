@@ -7,7 +7,30 @@ from __future__ import annotations
 from typing import Any, Dict, List, Optional, Sequence
 
 TIPOS_MATCH = ("CORREO", "DOMINIO", "ASUNTO")
-ACCIONES = ("IGNORAR", "ALERTA_MANUAL", "BUSCAR_RADICADO")
+# ASIGNAR_A = enviar siempre a un abogado concreto (campo asignado_a obligatorio)
+ACCIONES = ("IGNORAR", "ALERTA_MANUAL", "BUSCAR_RADICADO", "ASIGNAR_A")
+
+# Destinos frecuentes del estudio (para el selector del Dashboard)
+ABOGADOS_DESTINO: List[Dict[str, str]] = [
+    {"email": "juridico@asecobsas.com", "etiqueta": "Jurídico 1"},
+    {"email": "juridico2@asecobsas.com", "etiqueta": "Jurídico 2"},
+    {"email": "juridico3@asecobsas.com", "etiqueta": "Jurídico 3"},
+    {"email": "coordinacionjuridica@asecobsas.com", "etiqueta": "Coordinación jurídica"},
+    {"email": "coordinacion@asecobsas.com", "etiqueta": "Coordinación"},
+]
+
+ACCIONES_LABEL = {
+    "IGNORAR": "Ignorar (no reenviar)",
+    "ALERTA_MANUAL": "Avisar para revisión manual",
+    "BUSCAR_RADICADO": "Procesar como providencia",
+    "ASIGNAR_A": "Enviar siempre a este abogado",
+}
+
+TIPOS_LABEL = {
+    "CORREO": "Remitente = este correo",
+    "DOMINIO": "Remitente de este dominio",
+    "ASUNTO": "Asunto contiene…",
+}
 
 # Semilla alineada con las exclusiones históricas del código
 REGLAS_DEFAULT: List[Dict[str, Any]] = [
@@ -123,10 +146,16 @@ def extraer_dominio(remitente: str) -> str:
     return ""
 
 
-def validar_regla(tipo_match: str, accion: str, patron: str) -> Optional[str]:
+def validar_regla(
+    tipo_match: str,
+    accion: str,
+    patron: str,
+    asignado_a: Optional[str] = None,
+) -> Optional[str]:
     tm = (tipo_match or "").strip().upper()
     ac = (accion or "").strip().upper()
     pat = (patron or "").strip()
+    asig = (asignado_a or "").strip()
     if tm not in TIPOS_MATCH:
         return f"tipo_match inválido. Use: {', '.join(TIPOS_MATCH)}"
     if ac not in ACCIONES:
@@ -135,6 +164,9 @@ def validar_regla(tipo_match: str, accion: str, patron: str) -> Optional[str]:
         return "El patrón no puede estar vacío"
     if tm == "CORREO" and "@" not in pat:
         return "Para tipo CORREO el patrón debe ser un email (user@dominio)"
+    if ac == "ASIGNAR_A":
+        if not asig or "@" not in asig:
+            return "Para «Enviar a este abogado» debe indicar el email del abogado"
     return None
 
 
