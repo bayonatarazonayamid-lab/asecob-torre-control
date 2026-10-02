@@ -1,16 +1,12 @@
+"""Configuración SQLAlchemy: SQLite local por defecto; PostgreSQL vía DATABASE_URL."""
+from __future__ import annotations
+
 from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import declarative_base, sessionmaker
 
-# Para desarrollo local usamos SQLite. 
-# En producción, esta cadena cambiará a: "postgresql://usuario:clave@servidor/bd_asecob"
-SQLALCHEMY_DATABASE_URL = "sqlite:///./asecob_legaltech.db"
+from config import DATABASE_URL
 
-# connect_args solo es necesario para SQLite
-engine = create_engine(
-    SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
-)
-
+connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
+engine = create_engine(DATABASE_URL, connect_args=connect_args, pool_pre_ping=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
 Base = declarative_base()
