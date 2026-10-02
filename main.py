@@ -39,7 +39,16 @@ from reglas_correo_motor import (
 from sqlalchemy import inspect, text
 
 # Crea tablas faltantes (p. ej. reglas_correo) sin tocar datos existentes.
+print(
+    f"[BD] create_all → dialect={engine.dialect.name} "
+    f"host={engine.url.host or '(local)'} db={engine.url.database or ''}",
+    flush=True,
+)
 models.Base.metadata.create_all(bind=engine)
+print(
+    f"[BD] create_all OK · tablas en metadata={sorted(models.Base.metadata.tables.keys())}",
+    flush=True,
+)
 
 
 def _asegurar_columnas():
@@ -56,11 +65,12 @@ def _asegurar_columnas():
 
     insp = inspect(engine)
     tablas = set(insp.get_table_names())
+    print(f"[BD] tablas existentes tras create_all: {sorted(tablas)}", flush=True)
 
     # Tabla añadida después del esquema inicial: forzar create si create_all no la vio.
     if "reglas_correo" not in tablas:
         models.ReglaCorreo.__table__.create(bind=engine, checkfirst=True)
-        print("[BD] Tabla reglas_correo creada.")
+        print("[BD] Tabla reglas_correo creada.", flush=True)
         insp = inspect(engine)
         tablas = set(insp.get_table_names())
 
@@ -80,7 +90,7 @@ def _asegurar_columnas():
                 else:
                     sql = f"ALTER TABLE {tabla} ADD COLUMN {nombre} {tipo}"
                 conn.execute(text(sql))
-                print(f"[BD] Columna añadida: {tabla}.{nombre} ({tipo})")
+                print(f"[BD] Columna añadida: {tabla}.{nombre} ({tipo})", flush=True)
 
     _add_columns(
         "demandas_nuevas",
@@ -125,8 +135,10 @@ def _sembrar_reglas_si_vacio():
                     )
                 )
             db.commit()
-    except Exception:
+            print("[BD] Reglas de correo base sembradas.", flush=True)
+    except Exception as e:
         db.rollback()
+        print(f"[BD] AVISO sembrar reglas: {type(e).__name__}: {e}", flush=True)
     finally:
         db.close()
 
@@ -210,12 +222,50 @@ def _celda_float(fila, col: str, default: float = 0.0) -> float:
 @app.get("/health")
 @app.get("/api/salud")
 def salud_servidor():
+    # Diagnóstico seguro (sin usuario/clave): ¿SQLite o Postgres/Neon?
+    db_dialect = "?"
+    db_host = "?"
+    db_name = "?"
+    db_ok = False
+    tablas = 0
+    try:
+        db_dialect = engine.dialect.name
+        url = engine.url
+        db_host = str(url.host or url.database or "local")
+        db_name = str(url.database or "")
+        with engine.connect() as conn:
+            db_ok = True
+            if db_dialect.startswith("postgresql"):
+                tablas = int(
+                    conn.execute(
+                        text(
+                            "SELECT count(*) FROM information_schema.tables "
+                            "WHERE table_schema = 'public'"
+                        )
+                    ).scalar()
+                    or 0
+                )
+            else:
+                tablas = int(
+                    conn.execute(
+                        text("SELECT count(*) FROM sqlite_master WHERE type='table'")
+                    ).scalar()
+                    or 0
+                )
+    except Exception as e:
+        db_ok = False
+        db_host = f"error:{type(e).__name__}"
     return {
         "estado": "En línea",
         "sistema": "Torre de Control · GRUPO ASECOB SAS",
         "version": APP_VERSION,
         "dashboard": "/dashboard",
         "equipo": "Tablero compartido · robots locales en oficina",
+        "db_dialect": db_dialect,
+        "db_host": db_host,
+        "db_name": db_name,
+        "db_ok": db_ok,
+        "db_tablas": tablas,
     }
 
 
