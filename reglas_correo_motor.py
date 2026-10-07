@@ -15,8 +15,7 @@ ABOGADOS_DESTINO: List[Dict[str, str]] = [
     {"email": "juridico@asecobsas.com", "etiqueta": "Jurídico 1"},
     {"email": "juridico2@asecobsas.com", "etiqueta": "Jurídico 2"},
     {"email": "juridico3@asecobsas.com", "etiqueta": "Jurídico 3"},
-    {"email": "coordinacionjuridica@asecobsas.com", "etiqueta": "Coordinación jurídica"},
-    {"email": "coordinacion@asecobsas.com", "etiqueta": "Coordinación"},
+    {"email": "coordinacionjuridica@asecobsas.com", "etiqueta": "Director Jurídico"},
 ]
 
 ACCIONES_LABEL = {
