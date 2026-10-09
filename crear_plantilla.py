@@ -31,7 +31,8 @@ CARTERAS = [
 
 TIPOS_ID = ["CC", "CE", "NIT", "PPT", "PA"]
 TIPOS_BIEN = ["BANCOS", "VEHICULO", "INMUEBLE", "SALARIOS", "OTRO", "N/A"]
-TIPOS_INTERVENCION = ["ASECOB", "CLIENTE", "MIXTO"]
+# Valores del desplegable Redelex (plantilla antigua crear_plantilla.py)
+TIPOS_INTERVENCION = ["RENUNCIA", "ASECOB", "SUBROGACIÓN"]
 
 COLUMNAS = [
     "Tipo_Id_Demandado",
