@@ -10,16 +10,28 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 _BASE = Path(__file__).resolve().parent
-_TSV_CIUDADES = _BASE / "catalogos" / "ciudades_juzgado.tsv"
 _TXT_TIPOS = _BASE / "catalogos" / "tipos_juzgado.txt"
+
+
+def _ruta_ciudades() -> Path:
+    """Acepta .tsv o el nombre sin extensión (como en algunos deploys de GitHub)."""
+    candidatos = (
+        _BASE / "catalogos" / "ciudades_juzgado.tsv",
+        _BASE / "catalogos" / "ciudades_juzgado",
+    )
+    for ruta in candidatos:
+        if ruta.is_file():
+            return ruta
+    return candidatos[0]
 
 
 @lru_cache(maxsize=1)
 def _cargar_ciudades() -> Tuple[Tuple[str, str], ...]:
-    if not _TSV_CIUDADES.exists():
+    ruta = _ruta_ciudades()
+    if not ruta.exists():
         return tuple()
     filas: List[Tuple[str, str]] = []
-    for linea in _TSV_CIUDADES.read_text(encoding="utf-8").splitlines():
+    for linea in ruta.read_text(encoding="utf-8").splitlines():
         linea = linea.strip()
         if not linea or "\t" not in linea:
             continue
